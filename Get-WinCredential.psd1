@@ -9,7 +9,7 @@
 @{
 
     # Script module or binary module file associated with this manifest.
-    RootModule        = '.\Get-WinCredential\bin\Release\net6.0-windows\Get-WinCredential.dll'
+    RootModule        = '.\Get-WinCredential\bin\Release\net10.0-windows\Get-WinCredential.dll'
 
     # Version number of this module.
     ModuleVersion     = '1.1.0.0'
@@ -42,7 +42,7 @@
     FunctionsToExport = @()
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-    CmdletsToExport   = @("Get-WinCredential")
+    CmdletsToExport   = @('Get-WinCredential')
 
     # Variables to export from this module
     VariablesToExport = '*'
