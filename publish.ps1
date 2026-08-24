@@ -1,4 +1,4 @@
-﻿$apiKey = Get-Content -Path.\.apikey -Raw
-$module = '.\Get-WinCredential.psd1'
+﻿$apiKey = Get-Content -Path .\.apikey -Raw
+$module = '.\CredUICredential.psd1'
 
-Publish-Module -Name $module -NuGetApiKey $apiKey
+Publish-Module -Path $module -NuGetApiKey $apiKey

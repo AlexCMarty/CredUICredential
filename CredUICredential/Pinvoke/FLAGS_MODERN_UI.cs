@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace GetWinCredential.Pinvoke
+namespace CredUICredential.Pinvoke
 {
     internal static partial class CREDUI
     {

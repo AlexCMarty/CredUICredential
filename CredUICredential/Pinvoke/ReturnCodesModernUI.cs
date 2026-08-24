@@ -1,11 +1,8 @@
-﻿namespace GetWinCredential.Pinvoke
+﻿namespace CredUICredential.Pinvoke
 {
     internal static partial class CREDUI
     {
-        /// <summary>
-        ///     http://www.pinvoke.net/default.aspx/Enums.CredUIReturnCodes
-        /// </summary>
-        public enum ReturnCodes
+        public enum ReturnCodesModernUI
         {
             NO_ERROR = 0,
             ERROR_INVALID_PARAMETER = 87,

@@ -3,12 +3,12 @@ using System.Management.Automation;
 using System.Reflection.Metadata;
 using System.Windows.Forms;
 
-namespace GetWinCredential
+namespace CredUICredential
 {
-    [Cmdlet(VerbsCommon.Get, "WinCredential", DefaultParameterSetName = credentialSet, HelpUri = "https://github.com/zbalkan/Get-WinCredential/blob/master/Get-WinCredential.md")]
+    [Cmdlet(VerbsCommon.Get, "CredUICredential", DefaultParameterSetName = credentialSet, HelpUri = "https://github.com/AlexCMarty/CredUICredential/blob/master/CredUICredential.md")]
     [OutputType(typeof(PSCredential), ParameterSetName = new string[] { credentialSet, messageSet })]
 
-    public class GetWinCredentialCmdlet : PSCmdlet
+    public class GetCredUICredentialCmdlet : PSCmdlet
     {
         /// <summary>
         /// Gets or sets the underlying PSCredential of

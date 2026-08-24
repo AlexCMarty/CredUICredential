@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace GetWinCredential.Pinvoke
+namespace CredUICredential.Pinvoke
 {
     internal static partial class CREDUI
     {

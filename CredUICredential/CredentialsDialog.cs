@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
 using System.Windows.Forms;
-using GetWinCredential.Pinvoke;
+using CredUICredential.Pinvoke;
 
-namespace GetWinCredential
+namespace CredUICredential
 {
     /// <summary>
     ///     Encapsulates dialog functionality from the Credential Management API.
@@ -172,7 +172,7 @@ namespace GetWinCredential
         }
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="T:GetWinCredential.CredentialsDialog"
+        ///     Initializes a new instance of the <see cref="T:CredUICredential.CredentialsDialog"
         ///     /> class with the specified caption.
         /// </summary>
         /// <param name="message">
