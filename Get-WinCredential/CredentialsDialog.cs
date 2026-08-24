@@ -401,7 +401,7 @@ namespace GetWinCredential
                     var maxUserName = CREDUI.MAX_USERNAME_LENGTH;
                     var maxDomain = CREDUI.MAX_DOMAIN_TARGET_LENGTH;
                     var maxPassword = CREDUI.MAX_PASSWORD_LENGTH;
-                    if (CREDUI.CredUnPackAuthenticationBuffer(0, outCredBuffer, outCredSize, name, ref maxUserName,
+                    if (CREDUI.CredUnPackAuthenticationBuffer(1, outCredBuffer, outCredSize, name, ref maxUserName,
                             domainBuf, ref maxDomain, password, ref maxPassword))
                     {
                         //clear the memory allocated by CredUIPromptForWindowsCredentials
