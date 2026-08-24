@@ -14,43 +14,6 @@ namespace CredUICredential
     /// </summary>
     public sealed class CredentialsDialog
     {
-        /// <summary>
-        ///     Gets or sets if the dialog will be shown even if the credentials can be returned
-        ///     from an existing credential in the credential manager.
-        /// </summary>
-        private readonly bool _alwaysDisplay;
-
-        /// <summary>
-        ///     Gets or sets if the dialog is populated with username/password only.
-        /// </summary>
-        private readonly bool _excludeCertificates;
-
-        /// <summary>
-        ///     Gets or sets if the username is read-only.
-        /// </summary>
-        private readonly bool _keepName;
-
-        /// <summary>
-        ///     Gets or sets if the credentials are to be persisted in the credential manager.
-        /// </summary>
-        private readonly bool _persist;
-
-        /// <summary>
-        ///     Gets or sets if the save checkbox is displayed.
-        /// </summary>
-        /// <remarks> This value only has effect if _persist is true. </remarks>
-        private readonly bool _saveDisplayed;
-
-        /// <summary>
-        ///     Gets or sets the username of the target for the credentials, typically a server username.
-        /// </summary>
-        private readonly string _target;
-
-        /// <summary>
-        ///     Gets or sets if modern dialog is used or not.
-        /// </summary>
-        private readonly bool _useModernUI;
-
         private string _captionValue;
 
         private string _messageValue;
@@ -178,11 +141,8 @@ namespace CredUICredential
         /// <param name="message">
         ///     The caption of the dialog (null will cause a system default caption to be used).
         /// </param>
-        /// <param name="useModernUI"> Use Vista+ dialog </param>
-        public CredentialsDialog(string caption="", string message = "", bool useModernUI = false)
+        public CredentialsDialog(string caption="", string message = "")
         {
-            _target = "PowerShell";
-
             if (string.IsNullOrEmpty(caption))
             {
                 Caption = "Credentials";
@@ -200,14 +160,7 @@ namespace CredUICredential
             {
                 Message = message;
             }
-            _useModernUI = useModernUI;
-            // Keep the default values
-            _alwaysDisplay = true;
-            _excludeCertificates = false;
-            _persist = false;
-            _keepName = false;
             _saveChecked = false;
-            _saveDisplayed = false;
         }
         /// <summary>
         ///     Shows the credentials dialog with the specified owner, username, password and save
@@ -272,66 +225,13 @@ namespace CredUICredential
         }
 
         /// <summary>
-        ///     Returns a DialogResult from the specified code.
-        /// </summary>
-        /// <param name="code"> The credential return code. </param>
-        private static DialogResult GetDialogResultModernUI(CREDUI.ReturnCodesModernUI code)
-        {
-            switch (code)
-            {
-                case CREDUI.ReturnCodesModernUI.NO_ERROR:
-                    return DialogResult.OK;
-
-                case CREDUI.ReturnCodesModernUI.ERROR_CANCELLED:
-                    return DialogResult.Cancel;
-
-                case CREDUI.ReturnCodesModernUI.ERROR_NO_SUCH_LOGON_SESSION:
-                    throw new ApplicationException("No such logon session.");
-                case CREDUI.ReturnCodesModernUI.ERROR_NOT_FOUND:
-                    throw new ApplicationException("Not found.");
-                case CREDUI.ReturnCodesModernUI.ERROR_INVALID_ACCOUNT_NAME:
-                    throw new ApplicationException("Invalid account username.");
-                case CREDUI.ReturnCodesModernUI.ERROR_INSUFFICIENT_BUFFER:
-                    throw new ApplicationException("Insufficient buffer.");
-                case CREDUI.ReturnCodesModernUI.ERROR_INVALID_PARAMETER:
-                    throw new ApplicationException("Invalid parameter.");
-                case CREDUI.ReturnCodesModernUI.ERROR_INVALID_FLAGS:
-                    throw new ApplicationException("Invalid flags.");
-                default:
-                    throw new ApplicationException("Unknown credential result encountered.");
-            }
-        }
-
-        /// <summary>
         ///     Returns the flags for dialog display options.
         /// </summary>
         private CREDUI.FLAGS GetFlags()
         {
-            var flags = CREDUI.FLAGS.GENERIC_CREDENTIALS;
-            // grrrr... can't seem to get this to work... if (incorrectPassword) flags = flags | CredUI.CREDUI_FLAGS.INCORRECT_PASSWORD;
-            if (_alwaysDisplay) flags |= CREDUI.FLAGS.ALWAYS_SHOW_UI;
-            if (_excludeCertificates) flags |= CREDUI.FLAGS.EXCLUDE_CERTIFICATES;
-            if (_persist)
-            {
-                flags |= CREDUI.FLAGS.EXPECT_CONFIRMATION;
-                if (_saveDisplayed) flags |= CREDUI.FLAGS.SHOW_SAVE_CHECK_BOX;
-            }
-            else
-            {
-                flags |= CREDUI.FLAGS.DO_NOT_PERSIST;
-            }
-            if (_keepName) flags |= CREDUI.FLAGS.KEEP_USERNAME;
-            return flags;
-        }
-
-        /// <summary>
-        ///     Returns the flags for modern dialog display options.
-        /// </summary>
-        private CREDUI.FLAGS_MODERN_UI GetFlagsModernUI()
-        {
             // It is possible to improve using the flags but for most use cases, using
             // GENERIC is more than enough. But we need to enumerate the domain, etc.
-            return CREDUI.FLAGS_MODERN_UI.CREDUIWIN_AUTHPACKAGE_ONLY;
+            return CREDUI.FLAGS.CREDUIWIN_AUTHPACKAGE_ONLY;
         }
 
         /// <summary>
@@ -350,14 +250,7 @@ namespace CredUICredential
             return info;
         }
 
-        private void SetCredentials(StringBuilder n, StringBuilder pw, int save)
-        {
-            UserName = n.ToString();
-            Password = ConvertToSecureString(pw.ToString());
-            _saveChecked = Convert.ToBoolean(save);
-        }
-
-        private void SetCredentialsModern(StringBuilder n, StringBuilder pw)
+        private void SetCredentials(StringBuilder n, StringBuilder pw)
         {
             UserName = n.ToString();
             Password = ConvertToSecureString(pw.ToString());
@@ -381,57 +274,33 @@ namespace CredUICredential
             var password = new StringBuilder(CREDUI.MAX_PASSWORD_LENGTH);
             var info = GetInfo(owner);
             // make the API call
-            if (_useModernUI)
-            {
-                uint authPackage = 0;
-                var flags = GetFlagsModernUI();
-                var code = CREDUI.CredUIPromptForWindowsCredentials(ref info,
-                    0,
-                    ref authPackage,
-                    IntPtr.Zero,
-                    0,
-                    out var outCredBuffer,
-                    out var outCredSize,
-                    ref _saveChecked,
-                    flags);
+            uint authPackage = 0;
+            var flags = GetFlags();
+            var code = CREDUI.CredUIPromptForWindowsCredentials(ref info,
+                0,
+                ref authPackage,
+                IntPtr.Zero,
+                0,
+                out var outCredBuffer,
+                out var outCredSize,
+                ref _saveChecked,
+                flags);
 
-                if (code == CREDUI.ReturnCodesModernUI.NO_ERROR)
+            if (code == CREDUI.ReturnCodes.NO_ERROR)
+            {
+                var domainBuf = new StringBuilder(100);
+                var maxUserName = CREDUI.MAX_USERNAME_LENGTH;
+                var maxDomain = CREDUI.MAX_DOMAIN_TARGET_LENGTH;
+                var maxPassword = CREDUI.MAX_PASSWORD_LENGTH;
+                if (CREDUI.CredUnPackAuthenticationBuffer(1, outCredBuffer, outCredSize, name, ref maxUserName,
+                        domainBuf, ref maxDomain, password, ref maxPassword))
                 {
-                    var domainBuf = new StringBuilder(100);
-                    var maxUserName = CREDUI.MAX_USERNAME_LENGTH;
-                    var maxDomain = CREDUI.MAX_DOMAIN_TARGET_LENGTH;
-                    var maxPassword = CREDUI.MAX_PASSWORD_LENGTH;
-                    if (CREDUI.CredUnPackAuthenticationBuffer(1, outCredBuffer, outCredSize, name, ref maxUserName,
-                            domainBuf, ref maxDomain, password, ref maxPassword))
-                    {
-                        //clear the memory allocated by CredUIPromptForWindowsCredentials
-                        CREDUI.CoTaskMemFree(outCredBuffer);
-                        SetCredentialsModern(name, password);
-                    }
+                    //clear the memory allocated by CredUIPromptForWindowsCredentials
+                    CREDUI.CoTaskMemFree(outCredBuffer);
+                    SetCredentials(name, password);
                 }
-                return GetDialogResultModernUI(code);
             }
-            else
-            {
-                var flags = GetFlags();
-                var saveChecked = Convert.ToInt32(_saveChecked);
-
-                var code = CREDUI.PromptForCredentials(
-                    ref info,
-                    _target,
-                    IntPtr.Zero,
-                    0,
-                    name,
-                    CREDUI.MAX_USERNAME_LENGTH,
-                    password,
-                    CREDUI.MAX_PASSWORD_LENGTH,
-                    ref saveChecked,
-                    flags
-                );
-                // set the accessors from the API call parameters
-                SetCredentials(name, password, saveChecked);
-                return GetDialogResult(code);
-            }
+            return GetDialogResult(code);
         }
     }
 }

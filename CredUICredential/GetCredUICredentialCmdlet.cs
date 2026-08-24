@@ -24,7 +24,6 @@ namespace CredUICredential
         /// requesting the PSCredential from the user.
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = messageSet)]
-        [Parameter(Mandatory = false, ParameterSetName = messageSetModern)]
         [ValidateNotNullOrEmpty]
         public string Message { get; set; }
 
@@ -33,7 +32,6 @@ namespace CredUICredential
         /// requesting the PSCredential from the user.
         /// </summary>
         [Parameter(Mandatory = false, ParameterSetName = messageSet)]
-        [Parameter(Mandatory = false, ParameterSetName = messageSetModern)]
         [ValidateNotNullOrEmpty]
         public string Title { get; set; }
 
@@ -44,15 +42,6 @@ namespace CredUICredential
         [ValidateNotNullOrEmpty()]
         public string UserName { get; set; }
 
-        [Parameter(ParameterSetName = messageSetModern)]
-        public SwitchParameter UseModernDialog
-        {
-            get { return _useModernDialog; }
-            set { _useModernDialog = value; }
-        }
-
-        private bool _useModernDialog;
-
         /// <summary>
         /// The Credential parameter set name.
         /// </summary>
@@ -62,11 +51,6 @@ namespace CredUICredential
         /// The Message parameter set name.
         /// </summary>
         private const string messageSet = "MessageSet";
-
-        /// <summary>
-        /// The Modern Message parameter set name.
-        /// </summary>
-        private const string messageSetModern = "MessageSetModern";
 
         /// <summary>
         /// The command outputs the stored PSCredential.
@@ -81,7 +65,7 @@ namespace CredUICredential
 
             try
             {
-                var dialog = new CredentialsDialog(caption: Title, message: Message, useModernUI: _useModernDialog);
+                var dialog = new CredentialsDialog(caption: Title, message: Message);
                 var dialogResult = dialog.Show(UserName);
                 if (dialogResult == DialogResult.OK)
                 {

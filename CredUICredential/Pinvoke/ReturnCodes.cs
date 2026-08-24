@@ -2,9 +2,6 @@
 {
     internal static partial class CREDUI
     {
-        /// <summary>
-        ///     http://www.pinvoke.net/default.aspx/Enums.CredUIReturnCodes
-        /// </summary>
         public enum ReturnCodes
         {
             NO_ERROR = 0,
