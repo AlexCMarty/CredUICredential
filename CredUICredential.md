@@ -31,8 +31,8 @@ authentication dialog box appears to prompt the user. However, in some host prog
 console, you can prompt the user at the command line by changing a registry entry. For more information about this
 registry entry, see the notes and examples.
 
-This cmdlet aims to be a drop-in alternative to `Get-Credential`. Therefore, parameters and output is exactly the same.
-Except for the new `UseModernDialog` switch which can invoke Vista+ credential dialog.
+This cmdlet aims to be a drop-in alternative to `Get-Credential`. Therefore, parameters and output is exactly the same,
+except that it always shows the modern Vista+ credential dialog.
 
 Refer to `Get-Credential` documentation for advanced usages.
 
@@ -59,14 +59,6 @@ This command gets a credential object and saves it in the `$creds` variable.
 ```powershell
     Get-CredUICredential -Message "Type your credentials" -Username "test" -Title "Creds"
 ```
-
-## Example
-
-```powershell
-    Get-CredUICredential -Message "Type your credentials" -UseModernDialog
-```
-
-Unlike `Get-Credential`, you can trigger the modern credentials dialog.
 
 ## Example
 

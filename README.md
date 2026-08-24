@@ -10,7 +10,7 @@ This is a maintained fork of [Get-WinCredential](https://github.com/zbalkan/Get-
 was archived by its author. 
 
 This cmdlet aims to be a drop-in alternative to `Get-Credential`. Therefore, output is exactly the same. New parameters are included as features.
-For instance, the `UseModernDialog` switch can invoke the Vista+ credential dialog. However, you cannot pass the `Username` parameter as
+It always shows the modern (Vista+) credential dialog. However, you cannot pass the `Username` parameter as
 the CREDUI API does not allow it. Another feature is the `Title` parameter that enables the user to update the caption. It can be helpful with
 password management tools like KeePass which matches window title to the password.
 
@@ -25,15 +25,8 @@ The help documentation is in the `CredUICredential.md` file. Refer to the `Get-C
 ```
 
 ```powershell
-    # Use legacy credential dialog, the same with Get-Credential
+    # Use the modern (Vista+) credential dialog
     $creds = Get-CredUICredential
-```
-
-![Legacy dialog](/assets/legacy.png)
-
-```powershell
-    # Use modern credential dialog, came after Vista+ without a Title defined
-    $creds = Get-CredUICredential -UseModernDialog
 ```
 
 ![Modern dialog](/assets/modern.png)
