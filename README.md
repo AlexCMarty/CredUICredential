@@ -4,17 +4,53 @@
 [![PowerShell Gallery Downloads](https://img.shields.io/powershellgallery/dt/CredUICredential.svg)](https://www.powershellgallery.com/packages/CredUICredential)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 
-Gets a credential object based on a user name and password. It uses Windows native dialogs even on PowerShell 7.x, instead of terminal.
+## Why do I need CredUICredential?
 
-This is a maintained fork of [Get-WinCredential](https://github.com/zbalkan/Get-WinCredential) by Zafer Balkan, which
-was archived by its author. 
+Although, Powershell has built-in support for getting user credentials, it leaves much to be desired.
 
-This cmdlet aims to be a drop-in alternative to `Get-Credential`. Therefore, output is exactly the same. New parameters are included as features.
-It always shows the modern (Vista+) credential dialog. However, you cannot pass the `Username` parameter as
-the CREDUI API does not allow it. Another feature is the `Title` parameter that enables the user to update the caption. It can be helpful with
-password management tools like KeePass which matches window title to the password.
+In Powershell 7, the built-in cmdlet `Get-Credential` prompts for credentials in a terminal. It looks like this:
+```
+$x = Get-Credential                                        
 
-The help documentation is in the `CredUICredential.md` file. Refer to the `Get-Credential` documentation for advanced usages.
+PowerShell credential request
+Enter your credentials.
+User: firstname-lastname
+Password for user firstname-lastname: **********
+```
+
+There are several user experience problems with this:
+
+- The user cannot peek their password to confirm it's correct. Powershell obscures it with asteriks.
+- The user has to interact with the terminal.
+- It just doesn't look good.
+
+Overall, `Get-Credential` gets the job done, but it isn't the _best_ experience you could give your users.
+
+## How does CredUICredential address these problems?
+
+CredUICredential is a Powershell 7 module written in C# atop .NET 10.0. It uses P/Invoke to wrap **credui.dll**.
+
+Specifically, it calls `CredUIPromptForWindowsCredentials`, the same native API behind the modern (Vista+) Windows
+credential dialog you already see for things like UAC elevation and RDP logins. Because it's a real Windows dialog
+instead of a terminal prompt, you get the platform's UX for free:
+
+- The password field has a built-in "peek" icon so the user can reveal what they typed before submitting.
+- It's a native window, not text in a console — no terminal interaction required, and it pops to the front
+  whether the calling script is running interactively or in the background.
+- It automatically matches the user's OS theme (light, dark, high contrast), because it's rendered by Windows
+  itself rather than a re-implementation in WinForms or WPF.
+
+`Get-CredUICredential`, the cmdlet this module exports, is designed as a **drop-in replacement** for
+`Get-Credential`: it accepts a `Credential` parameter and returns a `PSCredential`, just like the built-in cmdlet,
+so in most scripts you can swap the cmdlet name and change nothing else. It always shows the modern dialog — there
+is no legacy fallback to opt out of. On top of that baseline, it adds a couple of small conveniences:
+
+- `-Message` lets you customize the text shown in the dialog, same as `Get-Credential`.
+- `-Title` lets you customize the dialog's window caption. This is particularly useful with password managers
+  like KeePass that match a window's title to decide which stored credentials to auto-type into it.
+
+One limitation carried over from the underlying API: you cannot pre-fill the `-UserName` parameter. The modern
+CredUI dialog doesn't expose a way to seed the username field, so the user always has to type it themselves.
 
 ## Usage
 
@@ -30,6 +66,9 @@ The help documentation is in the `CredUICredential.md` file. Refer to the `Get-C
 ```
 
 ![Modern dialog](/assets/modern.png)
+
+The help documentation is in the `CredUICredential.md` file. Refer to the `Get-Credential` documentation for
+advanced usages.
 
 ## Acknowledgement
 
