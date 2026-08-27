@@ -2,7 +2,7 @@
 Module Name: CredUICredential
 Module Guid: 7d7d0c54-14b3-4f7d-9c4a-bc8673d62258
 Download Help Link: https://raw.githubusercontent.com/AlexCMarty/CredUICredential/master/CredUICredential.md
-Help Version: 1.2.0.0
+Help Version: 1.2.1.0
 Locale: en-US
 ---
 
