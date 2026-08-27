@@ -289,10 +289,33 @@ namespace CredUICredential
         ///     accept; what comes back out of the dialog is Windows' own answer, and rejecting it
         ///     here would turn a successful prompt into an exception.
         /// </remarks>
-        private void SetCredentials(StringBuilder n, StringBuilder pw)
+        private void SetCredentials(StringBuilder n, StringBuilder domain, StringBuilder pw)
         {
-            _name = n.ToString();
+            _name = Qualify(n.ToString(), domain.ToString());
             _password = ConvertToSecureString(pw.ToString());
+        }
+
+        /// <summary>
+        ///     Puts the user name back together from the two buffers Windows fills in.
+        /// </summary>
+        /// <remarks>
+        ///     <c>CredUnPackAuthenticationBuffer</c> may report the domain separately from the user
+        ///     name, and dropping it changes which account the credential is for. It usually leaves
+        ///     the domain empty and returns whatever the user typed verbatim, so there is nothing
+        ///     to do; when it does not, and the user name is not already qualified by a domain
+        ///     prefix or a user principal name suffix, the two halves belong back together.
+        /// </remarks>
+        private static string Qualify(string userName, string domain)
+        {
+            if (string.IsNullOrEmpty(domain)
+                || string.IsNullOrEmpty(userName)
+                || userName.Contains('\\')
+                || userName.Contains('@'))
+            {
+                return userName;
+            }
+
+            return domain + "\\" + userName;
         }
 
         /// <summary>
@@ -324,7 +347,7 @@ namespace CredUICredential
                         password, ref passwordCapacity,
                         out lastError))
                 {
-                    SetCredentials(userName, password);
+                    SetCredentials(userName, domain, password);
                     return true;
                 }
 
