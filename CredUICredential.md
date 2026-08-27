@@ -7,7 +7,7 @@ Download Help Link:
       https://raw.githubusercontent.com/AlexCMarty/CredUICredential/master/CredUICredential.md,
     },
   }
-Help Version: { { 1.1.1.0 } }
+Help Version: { { 1.2.0.0 } }
 Locale: en-US
 ---
 

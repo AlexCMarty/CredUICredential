@@ -12,7 +12,7 @@
     RootModule        = '.\CredUICredential\bin\Release\net10.0-windows\CredUICredential.dll'
 
     # Version number of this module.
-    ModuleVersion     = '1.1.1.0'
+    ModuleVersion     = '1.2.0.0'
 
     # Supported PSEditions
     # CompatiblePSEditions = @()
