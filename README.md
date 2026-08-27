@@ -9,8 +9,9 @@
 Although, Powershell has built-in support for getting user credentials, it leaves much to be desired.
 
 In Powershell 7, the built-in cmdlet `Get-Credential` prompts for credentials in a terminal. It looks like this:
+
 ```
-$x = Get-Credential                                        
+$x = Get-Credential
 
 PowerShell credential request
 Enter your credentials.
@@ -35,15 +36,13 @@ credential dialog you already see for things like UAC elevation and RDP logins. 
 instead of a terminal prompt, you get the platform's UX for free:
 
 - The password field has a built-in "peek" icon so the user can reveal what they typed before submitting.
-- It's a native window, not text in a console — no terminal interaction required, and it pops to the front
-  whether the calling script is running interactively or in the background.
-- It automatically matches the user's OS theme (light, dark, high contrast), because it's rendered by Windows
-  itself rather than a re-implementation in WinForms or WPF.
+- It's a native window, so it pops to the front whether the calling script is running interactively or in the background.
+- It automatically matches the user's OS theme (light, dark, high contrast), because it's rendered by Windows itself.
 
-`Get-CredUICredential`, the cmdlet this module exports, is designed as a **drop-in replacement** for
+CredUICredential exports the cmdlet `Get-CredUICredential`, a **drop-in replacement** for
 `Get-Credential`: it accepts a `Credential` parameter and returns a `PSCredential`, just like the built-in cmdlet,
-so in most scripts you can swap the cmdlet name and change nothing else. It always shows the modern dialog — there
-is no legacy fallback to opt out of. On top of that baseline, it adds a couple of small conveniences:
+so in most scripts you can swap the cmdlet name and change nothing else.
+On top of that baseline, it adds a couple of small conveniences:
 
 - `-Message` lets you customize the text shown in the dialog, same as `Get-Credential`.
 - `-Title` lets you customize the dialog's window caption. This is particularly useful with password managers
@@ -57,12 +56,12 @@ CredUI dialog doesn't expose a way to seed the username field, so the user alway
 ```powershell
     # Install module from PowerShell Gallery
     # Package URL: https://www.powershellgallery.com/packages/CredUICredential
-    Install-Module CredUICredential
+    Install-PSResource CredUICredential
 ```
 
 ```powershell
-    # Use the modern (Vista+) credential dialog
-    $creds = Get-CredUICredential
+    # Use the modern credential dialog
+    $creds = Get-CredUICredential -Title 'Admin credentials needed' -Message 'Enter your admin credentials to continue'
 ```
 
 ![Modern dialog](/assets/modern.png)
