@@ -373,9 +373,14 @@ namespace CredUICredential
 
             if (code == CREDUI.ReturnCodes.NO_ERROR)
             {
-                if (TryReadCredential(outCredBuffer, outCredSize, out _))
+                try
                 {
-                    //clear the memory allocated by CredUIPromptForWindowsCredentials
+                    TryReadCredential(outCredBuffer, outCredSize, out _);
+                }
+                finally
+                {
+                    // The buffer belongs to us whether or not we could make sense of it, and it is
+                    // holding the password in the clear until it is released.
                     _api.FreeAuthenticationBuffer(outCredBuffer, outCredSize);
                 }
             }

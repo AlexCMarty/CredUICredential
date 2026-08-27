@@ -67,7 +67,29 @@ namespace CredUICredential.Pinvoke
                 return;
             }
 
+            Scrub(authBuffer, authBufferSize);
             CREDUI.CoTaskMemFree(authBuffer);
+        }
+
+        /// <summary>
+        ///     Overwrites <paramref name="size"/> bytes at <paramref name="buffer"/> with zeroes.
+        /// </summary>
+        /// <remarks>
+        ///     The authentication buffer holds the password in the clear, and freed task memory is
+        ///     handed straight to whatever allocates next. Microsoft's guidance for
+        ///     <c>CredUIPromptForWindowsCredentials</c> is to wipe the buffer before releasing it.
+        /// </remarks>
+        internal static void Scrub(IntPtr buffer, uint size)
+        {
+            if (buffer == IntPtr.Zero)
+            {
+                return;
+            }
+
+            for (uint offset = 0; offset < size; offset++)
+            {
+                Marshal.WriteByte(buffer, (int)offset, 0);
+            }
         }
     }
 }
