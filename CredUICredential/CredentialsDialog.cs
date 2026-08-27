@@ -14,6 +14,8 @@ namespace CredUICredential
     /// </summary>
     public sealed class CredentialsDialog
     {
+        private readonly ICredUiApi _api;
+
         private string _captionValue;
 
         private string _messageValue;
@@ -150,8 +152,22 @@ namespace CredUICredential
         /// <param name="message">
         ///     The caption of the dialog (null will cause a system default caption to be used).
         /// </param>
-        public CredentialsDialog(string caption="", string message = "")
+        public CredentialsDialog(string caption = "", string message = "")
+            : this(CredUiApi.Instance, caption, message)
         {
+        }
+
+        /// <summary>
+        ///     Initializes a new instance that talks to the supplied view of <c>credui.dll</c>.
+        /// </summary>
+        /// <remarks>
+        ///     The dialog is modal and interactive, so tests substitute the native layer here in
+        ///     order to drive the logic that surrounds it.
+        /// </remarks>
+        internal CredentialsDialog(ICredUiApi api, string caption = "", string message = "")
+        {
+            _api = api ?? throw new ArgumentNullException(nameof(api));
+
             if (string.IsNullOrEmpty(caption))
             {
                 Caption = "Credentials";
@@ -171,6 +187,7 @@ namespace CredUICredential
             }
             _saveChecked = false;
         }
+
         /// <summary>
         ///     Shows the credentials dialog with the specified owner, username, password and save
         ///     checkbox status.
@@ -206,6 +223,7 @@ namespace CredUICredential
             }
             return secureString;
         }
+
         /// <summary>
         ///     Returns a DialogResult from the specified code.
         /// </summary>
@@ -294,11 +312,9 @@ namespace CredUICredential
             // make the API call
             uint authPackage = 0;
             var flags = GetFlags(showSaveCheckbox);
-            var code = CREDUI.CredUIPromptForWindowsCredentials(ref info,
-                0,
+            var code = _api.PromptForWindowsCredentials(
+                ref info,
                 ref authPackage,
-                IntPtr.Zero,
-                0,
                 out var outCredBuffer,
                 out var outCredSize,
                 ref _saveChecked,
@@ -306,15 +322,15 @@ namespace CredUICredential
 
             if (code == CREDUI.ReturnCodes.NO_ERROR)
             {
-                var domainBuf = new StringBuilder(100);
+                var domainBuf = new StringBuilder(CREDUI.MAX_DOMAIN_TARGET_LENGTH);
                 var maxUserName = CREDUI.MAX_USERNAME_LENGTH;
                 var maxDomain = CREDUI.MAX_DOMAIN_TARGET_LENGTH;
                 var maxPassword = CREDUI.MAX_PASSWORD_LENGTH;
-                if (CREDUI.CredUnPackAuthenticationBuffer(1, outCredBuffer, outCredSize, name, ref maxUserName,
-                        domainBuf, ref maxDomain, password, ref maxPassword))
+                if (_api.TryUnpackAuthenticationBuffer(outCredBuffer, outCredSize, name, ref maxUserName,
+                        domainBuf, ref maxDomain, password, ref maxPassword, out _))
                 {
                     //clear the memory allocated by CredUIPromptForWindowsCredentials
-                    CREDUI.CoTaskMemFree(outCredBuffer);
+                    _api.FreeAuthenticationBuffer(outCredBuffer, outCredSize);
                     SetCredentials(name, password);
                 }
             }
