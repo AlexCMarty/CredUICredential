@@ -1,6 +1,6 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Management.Automation;
-using System.Reflection.Metadata;
 using System.Windows.Forms;
 
 namespace CredUICredential
@@ -62,6 +62,16 @@ namespace CredUICredential
         private const string messageSet = "MessageSet";
 
         /// <summary>
+        /// Creates the dialog this cmdlet prompts with.
+        /// </summary>
+        /// <remarks>
+        /// The prompt is modal and interactive, so this is the one point where it can be
+        /// substituted in order to exercise everything the cmdlet does around it.
+        /// </remarks>
+        internal virtual CredentialsDialog CreateDialog()
+            => new(caption: Title, message: Message);
+
+        /// <summary>
         /// The command outputs the stored PSCredential.
         /// </summary>
         protected override void BeginProcessing()
@@ -74,7 +84,7 @@ namespace CredUICredential
 
             try
             {
-                var dialog = new CredentialsDialog(caption: Title, message: Message);
+                var dialog = CreateDialog();
                 var dialogResult = dialog.Show(UserName, ShowSaveCheckbox.IsPresent);
                 if (dialogResult == DialogResult.OK)
                 {
@@ -89,7 +99,9 @@ namespace CredUICredential
                     }
                 }
             }
-            catch (ArgumentException exception)
+            // A prompt that Windows refuses to show, or a credential it will not hand back, is a
+            // failure of this one command - not a reason to tear down the caller's pipeline.
+            catch (Exception exception) when (exception is ArgumentException or Win32Exception)
             {
                 ErrorRecord errorRecord = new(
                     exception,

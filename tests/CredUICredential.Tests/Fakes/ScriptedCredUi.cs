@@ -40,6 +40,9 @@ namespace CredUICredential.Tests.Fakes
         /// <summary>The password the packed buffer decodes to.</summary>
         public string Password { get; set; } = "s3cret";
 
+        /// <summary>The dialog description the module built.</summary>
+        public CREDUI.INFO? RequestedInfo { get; private set; }
+
         /// <summary>The state the prompt reports for the Save check box.</summary>
         public bool SaveChecked { get; set; }
 
@@ -65,6 +68,7 @@ namespace CredUICredential.Tests.Fakes
             CREDUI.FLAGS flags)
         {
             PromptCount++;
+            RequestedInfo = info;
 
             if (PromptResult != CREDUI.ReturnCodes.NO_ERROR)
             {

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
@@ -228,6 +229,12 @@ namespace CredUICredential
         ///     Returns a DialogResult from the specified code.
         /// </summary>
         /// <param name="code"> The credential return code. </param>
+        /// <remarks>
+        ///     Anything that is neither success nor a cancellation is reported as the Win32 error
+        ///     it is. <see cref="Win32Exception"/> carries the numeric code through for callers
+        ///     that want to branch on it, and looks the description up from the operating system,
+        ///     which knows about far more errors than this module could usefully enumerate.
+        /// </remarks>
         private static DialogResult GetDialogResult(CREDUI.ReturnCodes code)
         {
             switch (code)
@@ -238,20 +245,8 @@ namespace CredUICredential
                 case CREDUI.ReturnCodes.ERROR_CANCELLED:
                     return DialogResult.Cancel;
 
-                case CREDUI.ReturnCodes.ERROR_NO_SUCH_LOGON_SESSION:
-                    throw new ApplicationException("No such logon session.");
-                case CREDUI.ReturnCodes.ERROR_NOT_FOUND:
-                    throw new ApplicationException("Not found.");
-                case CREDUI.ReturnCodes.ERROR_INVALID_ACCOUNT_NAME:
-                    throw new ApplicationException("Invalid account username.");
-                case CREDUI.ReturnCodes.ERROR_INSUFFICIENT_BUFFER:
-                    throw new ApplicationException("Insufficient buffer.");
-                case CREDUI.ReturnCodes.ERROR_INVALID_PARAMETER:
-                    throw new ApplicationException("Invalid parameter.");
-                case CREDUI.ReturnCodes.ERROR_INVALID_FLAGS:
-                    throw new ApplicationException("Invalid flags.");
                 default:
-                    throw new ApplicationException("Unknown credential result encountered.");
+                    throw new Win32Exception((int)code);
             }
         }
 
@@ -373,15 +368,26 @@ namespace CredUICredential
 
             if (code == CREDUI.ReturnCodes.NO_ERROR)
             {
+                bool read;
+                int readError;
                 try
                 {
-                    TryReadCredential(outCredBuffer, outCredSize, out _);
+                    read = TryReadCredential(outCredBuffer, outCredSize, out readError);
                 }
                 finally
                 {
                     // The buffer belongs to us whether or not we could make sense of it, and it is
                     // holding the password in the clear until it is released.
                     _api.FreeAuthenticationBuffer(outCredBuffer, outCredSize);
+                }
+
+                if (!read)
+                {
+                    // Reporting success here would hand back a null password, and the caller would
+                    // only find out about it somewhere else entirely.
+                    throw new Win32Exception(
+                        readError,
+                        "The credential dialog returned a credential that could not be read.");
                 }
             }
             return GetDialogResult(code);
