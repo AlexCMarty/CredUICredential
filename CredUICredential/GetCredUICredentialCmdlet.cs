@@ -7,6 +7,7 @@ namespace CredUICredential
 {
     [Cmdlet(VerbsCommon.Get, "CredUICredential", DefaultParameterSetName = credentialSet, HelpUri = "https://github.com/AlexCMarty/CredUICredential/blob/master/CredUICredential.md")]
     [OutputType(typeof(PSCredential), ParameterSetName = new string[] { credentialSet, messageSet })]
+    [OutputType(typeof(PSObject), ParameterSetName = new string[] { messageSet })]
 
     public class GetCredUICredentialCmdlet : PSCmdlet
     {
@@ -43,6 +44,14 @@ namespace CredUICredential
         public string UserName { get; set; }
 
         /// <summary>
+        /// Gets and sets whether the dialog displays a Save check box. When specified, the
+        /// cmdlet outputs an object with Credential and Checkbox properties instead of a bare
+        /// PSCredential.
+        /// </summary>
+        [Parameter(Mandatory = false, ParameterSetName = messageSet)]
+        public SwitchParameter ShowSaveCheckbox { get; set; }
+
+        /// <summary>
         /// The Credential parameter set name.
         /// </summary>
         private const string credentialSet = "CredentialSet";
@@ -66,10 +75,18 @@ namespace CredUICredential
             try
             {
                 var dialog = new CredentialsDialog(caption: Title, message: Message);
-                var dialogResult = dialog.Show(UserName);
+                var dialogResult = dialog.Show(UserName, ShowSaveCheckbox.IsPresent);
                 if (dialogResult == DialogResult.OK)
                 {
                     Credential = new PSCredential(dialog.UserName, dialog.Password);
+                    if (ShowSaveCheckbox.IsPresent)
+                    {
+                        var result = new PSObject();
+                        result.Properties.Add(new PSNoteProperty("Credential", Credential));
+                        result.Properties.Add(new PSNoteProperty("Checkbox", dialog.SaveChecked));
+                        WriteObject(result);
+                        return;
+                    }
                 }
             }
             catch (ArgumentException exception)
