@@ -208,11 +208,21 @@ namespace CredUICredential
             UserName = username;
             _saveChecked = false;
 
-            // Get the owner
-            var owner = new NativeWindow();
-            owner.AssignHandle(Process.GetCurrentProcess().MainWindowHandle);
+            return ShowDialog(GetOwnerHandle(), showSaveCheckbox);
+        }
 
-            return ShowDialog(owner, showSaveCheckbox);
+        /// <summary>
+        ///     The window the dialog should sit in front of.
+        /// </summary>
+        /// <remarks>
+        ///     A console host normally has no main window, in which case this is
+        ///     <see cref="IntPtr.Zero"/> and Windows centres the dialog on the desktop - which is
+        ///     what makes the prompt reachable from a script running in the background.
+        /// </remarks>
+        private static IntPtr GetOwnerHandle()
+        {
+            using var process = Process.GetCurrentProcess();
+            return process.MainWindowHandle;
         }
 
         private static SecureString ConvertToSecureString(string value)
@@ -268,12 +278,12 @@ namespace CredUICredential
         ///     Returns the info structure for dialog display settings.
         /// </summary>
         /// <param name="owner">
-        ///     The System.Windows.Forms.IWin32Window the dialog will display in front of.
+        ///     Handle of the window the dialog will display in front of.
         /// </param>
-        private CREDUI.INFO GetInfo(IWin32Window owner)
+        private CREDUI.INFO GetInfo(IntPtr owner)
         {
             var info = new CREDUI.INFO();
-            if (owner != null) info.hwndParent = owner.Handle;
+            info.hwndParent = owner;
             info.pszCaptionText = Caption;
             info.pszMessageText = Message;
             info.cbSize = Marshal.SizeOf(info);
@@ -367,14 +377,14 @@ namespace CredUICredential
         ///     Returns a DialogResult indicating the user action.
         /// </summary>
         /// <param name="owner">
-        ///     The System.Windows.Forms.IWin32Window the dialog will display in front of.
+        ///     Handle of the window the dialog will display in front of.
         /// </param>
         /// <param name="showSaveCheckbox"> Whether to include the Save check box in the dialog. </param>
         /// <remarks>
         ///     Sets the username, password and SaveChecked accessors to the state of the dialog as
         ///     it was dismissed by the user.
         /// </remarks>
-        private DialogResult ShowDialog(IWin32Window owner, bool showSaveCheckbox)
+        private DialogResult ShowDialog(IntPtr owner, bool showSaveCheckbox)
         {
             // set the API call parameters
             var info = GetInfo(owner);
