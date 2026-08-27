@@ -1,7 +1,3 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commits
 
 You MUST use conventional commits.
@@ -44,9 +40,8 @@ One test class, or one test:
 dotnet test tests/CredUICredential.Tests/CredUICredential.Tests.csproj --filter 'FullyQualifiedName~CredentialsDialogTests'
 ```
 
-`Reload-Module.ps1` builds Release and imports the module for hands-on use. Dot-source it. Note that
-an imported module locks `CredUICredential/bin/Release/**/CredUICredential.dll`, so a Release build
-will fail to overwrite it until that PowerShell session exits.
+Note that an imported module locks `CredUICredential/bin/Release/**/CredUICredential.dll`, 
+so a Release build will fail to overwrite it until that PowerShell session exits.
 
 ## Layout
 
