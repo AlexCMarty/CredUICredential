@@ -43,6 +43,15 @@ dotnet test tests/CredUICredential.Tests/CredUICredential.Tests.csproj --filter 
 Note that an imported module locks `CredUICredential/bin/Release/**/CredUICredential.dll`, 
 so a Release build will fail to overwrite it until that PowerShell session exits.
 
+Regenerate the `Get-Help` MAML after editing `CredUICredential.md` or the cmdlet's parameters:
+
+```bash
+pwsh ./Update-Help.ps1
+```
+
+It installs `Microsoft.PowerShell.PlatyPS` for the current user if missing, builds Debug (not
+Release, so it never collides with the lock above), and writes `en-US/CredUICredential.dll-Help.xml`.
+
 ## Layout
 
 | Path | What lives there |
@@ -52,8 +61,9 @@ so a Release build will fail to overwrite it until that PowerShell session exits
 | `CredUICredential/Plaintext.cs` | The window in which the password exists as characters |
 | `CredUICredential/Pinvoke/` | The `credui.dll` declarations and the `ICredUiApi` seam over them |
 | `CredUICredential.psd1` | Module manifest — what the Gallery publishes |
-| `en-US/CredUICredential.dll-Help.xml` | Hand-written MAML; this is what `Get-Help` prints |
-| `CredUICredential.md` | The documentation `HelpUri` points at |
+| `en-US/CredUICredential.dll-Help.xml` | Generated MAML; this is what `Get-Help` prints. Do not hand-edit |
+| `CredUICredential.md` | The PlatyPS source for the MAML, and the documentation `HelpUri` points at |
+| `Update-Help.ps1` | Regenerates the MAML from `CredUICredential.md` — run after editing either |
 | `tests/CredUICredential.Tests/` | xunit suite |
 
 ## Testing a modal dialog
@@ -107,9 +117,20 @@ they drift. `PowerShellVersion` is likewise tied to the target framework — a b
 .NET 10 needs PowerShell 7.6 or later, and understating that just turns a clear error into an
 assembly load failure.
 
-**The MAML help is hand-written.** Nothing regenerates it. `HelpDocumentationTests` compares it to
-the cmdlet type, so adding or renaming a parameter fails the build until `en-US/CredUICredential.dll-Help.xml`
-is updated too.
+**The MAML help is generated, not hand-written.** `CredUICredential.md` is a `Microsoft.PowerShell.PlatyPS`
+markdown-help file: its prose (synopsis, description, examples, parameter descriptions, notes) is what you
+edit by hand, but its structural sections (SYNTAX, the per-parameter YAML blocks) are re-derived from the
+live cmdlet every time `Update-Help.ps1` runs, not typed by hand. Editing a cmdlet's parameters means
+running that script, not touching XML. `HelpDocumentationTests` still compares the generated XML against
+the cmdlet type directly — that's what actually catches "changed the cmdlet, forgot to rerun the script."
+
+**PlatyPS 1.0.3 has two rough edges to know about when editing `CredUICredential.md`.** Splitting an
+`EXAMPLES` entry into multiple markdown paragraphs (a blank line) makes `Export-MamlCommandHelp` emit a
+stray control character (`&#x80;`) between them — write each example as one paragraph (single newlines,
+no blank lines) to avoid it. Separately, `Update-MarkdownCommandHelp` unconditionally re-inserts an empty
+`## ALIASES` heading and a `{{ Fill in the related links here }}` placeholder under `## RELATED LINKS` on
+every run; that's expected and harmless — the "Online Version" link in the shipped XML comes from the
+`HelpUri` front matter, not from that section — so leave both alone rather than fighting the regeneration.
 
 ## Known limitation
 
