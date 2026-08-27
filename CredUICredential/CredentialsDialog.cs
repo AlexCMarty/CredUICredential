@@ -285,10 +285,64 @@ namespace CredUICredential
             return info;
         }
 
+        /// <summary>
+        ///     Records what the user actually typed.
+        /// </summary>
+        /// <remarks>
+        ///     This deliberately writes the fields rather than the properties. The property
+        ///     setters guard against a <em>caller</em> supplying something Windows will not
+        ///     accept; what comes back out of the dialog is Windows' own answer, and rejecting it
+        ///     here would turn a successful prompt into an exception.
+        /// </remarks>
         private void SetCredentials(StringBuilder n, StringBuilder pw)
         {
-            UserName = n.ToString();
-            Password = ConvertToSecureString(pw.ToString());
+            _name = n.ToString();
+            _password = ConvertToSecureString(pw.ToString());
+        }
+
+        /// <summary>
+        ///     Decodes the buffer the dialog produced, growing the destination buffers if Windows
+        ///     says they are too small.
+        /// </summary>
+        /// <remarks>
+        ///     <c>CredUnPackAuthenticationBuffer</c> fails with <c>ERROR_INSUFFICIENT_BUFFER</c>
+        ///     and writes the sizes it needs into the capacity arguments, so one more attempt with
+        ///     those sizes is always enough.
+        /// </remarks>
+        /// <returns> <see langword="true"/> if the credential was decoded. </returns>
+        private bool TryReadCredential(IntPtr authBuffer, uint authBufferSize, out int lastError)
+        {
+            var userNameCapacity = CREDUI.MAX_USERNAME_LENGTH;
+            var domainCapacity = CREDUI.MAX_DOMAIN_TARGET_LENGTH;
+            var passwordCapacity = CREDUI.MAX_PASSWORD_LENGTH;
+
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                var userName = new StringBuilder(userNameCapacity);
+                var domain = new StringBuilder(domainCapacity);
+                var password = new StringBuilder(passwordCapacity);
+
+                if (_api.TryUnpackAuthenticationBuffer(
+                        authBuffer, authBufferSize,
+                        userName, ref userNameCapacity,
+                        domain, ref domainCapacity,
+                        password, ref passwordCapacity,
+                        out lastError))
+                {
+                    SetCredentials(userName, password);
+                    return true;
+                }
+
+                if (lastError != (int)CREDUI.ReturnCodes.ERROR_INSUFFICIENT_BUFFER)
+                {
+                    return false;
+                }
+
+                // Windows has just told us how much room it wants. Round we go again.
+            }
+
+            lastError = (int)CREDUI.ReturnCodes.ERROR_INSUFFICIENT_BUFFER;
+            return false;
         }
 
         /// <summary>
@@ -305,9 +359,6 @@ namespace CredUICredential
         private DialogResult ShowDialog(IWin32Window owner, bool showSaveCheckbox)
         {
             // set the API call parameters
-            var name = new StringBuilder(CREDUI.MAX_USERNAME_LENGTH);
-            name.Append(UserName);
-            var password = new StringBuilder(CREDUI.MAX_PASSWORD_LENGTH);
             var info = GetInfo(owner);
             // make the API call
             uint authPackage = 0;
@@ -322,16 +373,10 @@ namespace CredUICredential
 
             if (code == CREDUI.ReturnCodes.NO_ERROR)
             {
-                var domainBuf = new StringBuilder(CREDUI.MAX_DOMAIN_TARGET_LENGTH);
-                var maxUserName = CREDUI.MAX_USERNAME_LENGTH;
-                var maxDomain = CREDUI.MAX_DOMAIN_TARGET_LENGTH;
-                var maxPassword = CREDUI.MAX_PASSWORD_LENGTH;
-                if (_api.TryUnpackAuthenticationBuffer(outCredBuffer, outCredSize, name, ref maxUserName,
-                        domainBuf, ref maxDomain, password, ref maxPassword, out _))
+                if (TryReadCredential(outCredBuffer, outCredSize, out _))
                 {
                     //clear the memory allocated by CredUIPromptForWindowsCredentials
                     _api.FreeAuthenticationBuffer(outCredBuffer, outCredSize);
-                    SetCredentials(name, password);
                 }
             }
             return GetDialogResult(code);
