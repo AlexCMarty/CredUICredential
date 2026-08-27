@@ -86,5 +86,34 @@ namespace CredUICredential.Tests
             Assert.Throws<Win32Exception>(() => new CredentialsDialog(api).Show());
             Assert.Equal(2, api.UnpackAttempts.Count);
         }
+
+        [Fact]
+        public void APackFailureIsReportedAsAWin32Exception()
+        {
+            const int ERROR_NOT_ENOUGH_MEMORY = 8;
+            var dialog = new CredentialsDialog(new ScriptedCredUi { PackFailsWith = ERROR_NOT_ENOUGH_MEMORY });
+
+            var exception = Assert.Throws<Win32Exception>(() => dialog.Show(username: "alice"));
+
+            Assert.Equal(ERROR_NOT_ENOUGH_MEMORY, exception.NativeErrorCode);
+        }
+
+        [Fact]
+        public void APackFailureNeverReachesThePrompt()
+        {
+            var api = new ScriptedCredUi { PackFailsWith = 8 };
+            var dialog = new CredentialsDialog(api);
+
+            try
+            {
+                dialog.Show(username: "alice");
+            }
+            catch (Win32Exception)
+            {
+                // The failure itself is another test's business.
+            }
+
+            Assert.Equal(0, api.PromptCount);
+        }
     }
 }

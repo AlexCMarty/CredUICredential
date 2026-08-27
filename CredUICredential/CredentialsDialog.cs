@@ -397,39 +397,64 @@ namespace CredUICredential
             // make the API call
             uint authPackage = 0;
             var flags = GetFlags(showSaveCheckbox);
-            var code = _api.PromptForWindowsCredentials(
-                ref info,
-                ref authPackage,
-                out var outCredBuffer,
-                out var outCredSize,
-                ref _saveChecked,
-                flags);
 
-            if (code == CREDUI.ReturnCodes.NO_ERROR)
+            var inAuthBuffer = IntPtr.Zero;
+            uint inAuthBufferSize = 0;
+            if (!string.IsNullOrEmpty(UserName))
             {
-                bool read;
-                int readError;
-                try
+                if (!_api.TryPackAuthenticationBuffer(UserName, out inAuthBuffer, out inAuthBufferSize, out var packError))
                 {
-                    read = TryReadCredential(outCredBuffer, outCredSize, out readError);
-                }
-                finally
-                {
-                    // The buffer belongs to us whether or not we could make sense of it, and it is
-                    // holding the password in the clear until it is released.
-                    _api.FreeAuthenticationBuffer(outCredBuffer, outCredSize);
-                }
-
-                if (!read)
-                {
-                    // Reporting success here would hand back a null password, and the caller would
-                    // only find out about it somewhere else entirely.
                     throw new Win32Exception(
-                        readError,
-                        "The credential dialog returned a credential that could not be read.");
+                        packError,
+                        "The user name could not be prepared for the credential dialog.");
                 }
             }
-            return GetDialogResult(code);
+
+            try
+            {
+                var code = _api.PromptForWindowsCredentials(
+                    ref info,
+                    ref authPackage,
+                    inAuthBuffer,
+                    inAuthBufferSize,
+                    out var outCredBuffer,
+                    out var outCredSize,
+                    ref _saveChecked,
+                    flags);
+
+                if (code == CREDUI.ReturnCodes.NO_ERROR)
+                {
+                    bool read;
+                    int readError;
+                    try
+                    {
+                        read = TryReadCredential(outCredBuffer, outCredSize, out readError);
+                    }
+                    finally
+                    {
+                        // The buffer belongs to us whether or not we could make sense of it, and it is
+                        // holding the password in the clear until it is released.
+                        _api.FreeAuthenticationBuffer(outCredBuffer, outCredSize);
+                    }
+
+                    if (!read)
+                    {
+                        // Reporting success here would hand back a null password, and the caller would
+                        // only find out about it somewhere else entirely.
+                        throw new Win32Exception(
+                            readError,
+                            "The credential dialog returned a credential that could not be read.");
+                    }
+                }
+                return GetDialogResult(code);
+            }
+            finally
+            {
+                if (inAuthBuffer != IntPtr.Zero)
+                {
+                    _api.FreeAuthenticationBuffer(inAuthBuffer, inAuthBufferSize);
+                }
+            }
         }
     }
 }

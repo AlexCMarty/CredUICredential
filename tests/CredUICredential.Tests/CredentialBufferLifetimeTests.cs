@@ -79,6 +79,66 @@ namespace CredUICredential.Tests
         }
 
         [Fact]
+        public void NoUserNameMeansNoInputBufferIsBuilt()
+        {
+            var api = new ScriptedCredUi();
+
+            new CredentialsDialog(api).Show();
+
+            Assert.Null(api.PackedUserName);
+        }
+
+        [Fact]
+        public void ThePackedInputBufferIsPassedToThePrompt()
+        {
+            var api = new ScriptedCredUi();
+
+            new CredentialsDialog(api).Show(username: "alice");
+
+            Assert.Equal("alice", api.PackedUserName);
+            Assert.Equal(ScriptedCredUi.InputBuffer, api.RequestedInAuthBuffer);
+            Assert.Equal(ScriptedCredUi.InputBufferSize, api.RequestedInAuthBufferSize);
+        }
+
+        [Fact]
+        public void TheInputBufferIsReleasedAfterASuccessfulPrompt()
+        {
+            var api = new ScriptedCredUi();
+
+            new CredentialsDialog(api).Show(username: "alice");
+
+            Assert.Contains(ScriptedCredUi.InputBuffer, api.FreedBuffers);
+        }
+
+        [Fact]
+        public void TheInputBufferIsReleasedEvenWhenThePromptIsCancelled()
+        {
+            var api = new ScriptedCredUi { PromptResult = CREDUI.ReturnCodes.ERROR_CANCELLED };
+
+            new CredentialsDialog(api).Show(username: "alice");
+
+            Assert.Contains(ScriptedCredUi.InputBuffer, api.FreedBuffers);
+        }
+
+        [Fact]
+        public void NothingIsReleasedWhenPackingFails()
+        {
+            const int ERROR_NOT_ENOUGH_MEMORY = 8;
+            var api = new ScriptedCredUi { PackFailsWith = ERROR_NOT_ENOUGH_MEMORY };
+
+            try
+            {
+                new CredentialsDialog(api).Show(username: "alice");
+            }
+            catch (Exception)
+            {
+                // How the failure is reported is another test's business.
+            }
+
+            Assert.Empty(api.FreedBuffers);
+        }
+
+        [Fact]
         public void ReleasingABufferWipesTheCredentialOutOfItFirst()
         {
             // Microsoft's guidance for CredUIPromptForWindowsCredentials is to zero the buffer

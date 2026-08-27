@@ -28,6 +28,11 @@ namespace CredUICredential.Tests.Fakes
 
         public const uint BufferSize = 128;
 
+        /// <summary>The pointer <see cref="TryPackAuthenticationBuffer"/> hands back on success.</summary>
+        public static readonly IntPtr InputBuffer = new(0x0BADF00D);
+
+        public const uint InputBufferSize = 64;
+
         /// <summary>What the prompt itself returns.</summary>
         public CREDUI.ReturnCodes PromptResult { get; set; } = CREDUI.ReturnCodes.NO_ERROR;
 
@@ -49,6 +54,18 @@ namespace CredUICredential.Tests.Fakes
         /// <summary>When set, every decode attempt fails with this Win32 error.</summary>
         public int? UnpackFailsWith { get; set; }
 
+        /// <summary>When set, <see cref="TryPackAuthenticationBuffer"/> fails with this Win32 error.</summary>
+        public int? PackFailsWith { get; set; }
+
+        /// <summary>The user name last handed to <see cref="TryPackAuthenticationBuffer"/>, if any.</summary>
+        public string PackedUserName { get; private set; }
+
+        /// <summary>The input buffer the module passed into the prompt, if any.</summary>
+        public IntPtr? RequestedInAuthBuffer { get; private set; }
+
+        /// <summary>The input buffer size the module passed into the prompt.</summary>
+        public uint RequestedInAuthBufferSize { get; private set; }
+
         /// <summary>Every buffer handed to <see cref="FreeAuthenticationBuffer"/>, in order.</summary>
         public List<IntPtr> FreedBuffers { get; } = new();
 
@@ -62,6 +79,8 @@ namespace CredUICredential.Tests.Fakes
         public CREDUI.ReturnCodes PromptForWindowsCredentials(
             ref CREDUI.INFO info,
             ref uint authPackage,
+            IntPtr inAuthBuffer,
+            uint inAuthBufferSize,
             out IntPtr authBuffer,
             out uint authBufferSize,
             ref bool save,
@@ -69,6 +88,8 @@ namespace CredUICredential.Tests.Fakes
         {
             PromptCount++;
             RequestedInfo = info;
+            RequestedInAuthBuffer = inAuthBuffer;
+            RequestedInAuthBufferSize = inAuthBufferSize;
 
             if (PromptResult != CREDUI.ReturnCodes.NO_ERROR)
             {
@@ -143,8 +164,18 @@ namespace CredUICredential.Tests.Fakes
             out uint authBufferSize,
             out int lastError)
         {
-            authBuffer = IntPtr.Zero;
-            authBufferSize = 0;
+            PackedUserName = userName;
+
+            if (PackFailsWith.HasValue)
+            {
+                authBuffer = IntPtr.Zero;
+                authBufferSize = 0;
+                lastError = PackFailsWith.Value;
+                return false;
+            }
+
+            authBuffer = InputBuffer;
+            authBufferSize = InputBufferSize;
             lastError = 0;
             return true;
         }

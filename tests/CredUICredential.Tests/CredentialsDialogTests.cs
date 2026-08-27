@@ -104,5 +104,16 @@ namespace CredUICredential.Tests
 
             Assert.Equal(api.AllocatedBuffers, api.FreedBuffers);
         }
+
+        [Fact]
+        public void SeededUserNameReachesTheNativePrompt()
+        {
+            var api = new RealBufferCredUi();
+            var dialog = new CredentialsDialog(api);
+
+            dialog.Show(username: "CONTOSO\\alice");
+
+            Assert.Equal("CONTOSO\\alice", api.SeededUserName);
+        }
     }
 }

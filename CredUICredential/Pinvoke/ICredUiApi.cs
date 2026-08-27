@@ -29,9 +29,15 @@ namespace CredUICredential.Pinvoke
         ///     Receives a buffer allocated by the operating system. The caller owns it and must
         ///     hand it back to <see cref="FreeAuthenticationBuffer"/>.
         /// </param>
+        /// <param name="inAuthBuffer">
+        ///     A buffer to seed the dialog with, from <see cref="TryPackAuthenticationBuffer"/>, or
+        ///     <see cref="IntPtr.Zero"/> for none.
+        /// </param>
         CREDUI.ReturnCodes PromptForWindowsCredentials(
             ref CREDUI.INFO info,
             ref uint authPackage,
+            IntPtr inAuthBuffer,
+            uint inAuthBufferSize,
             out IntPtr authBuffer,
             out uint authBufferSize,
             ref bool save,

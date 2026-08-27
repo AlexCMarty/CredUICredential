@@ -40,9 +40,14 @@ namespace CredUICredential.Tests.Fakes
         /// <summary>Every buffer this stand-in allocated, in order.</summary>
         public List<IntPtr> AllocatedBuffers { get; } = new();
 
+        /// <summary>The input buffer the module passed in, decoded back to a user name, if any.</summary>
+        public string SeededUserName { get; private set; }
+
         public CREDUI.ReturnCodes PromptForWindowsCredentials(
             ref CREDUI.INFO info,
             ref uint authPackage,
+            IntPtr inAuthBuffer,
+            uint inAuthBufferSize,
             out IntPtr authBuffer,
             out uint authBufferSize,
             ref bool save,
@@ -50,6 +55,7 @@ namespace CredUICredential.Tests.Fakes
         {
             RequestedFlags = flags;
             RequestedInfo = info;
+            SeededUserName = DecodeSeededUserName(inAuthBuffer, inAuthBufferSize);
 
             authBuffer = CredentialBuffer.Pack(UserName, Password, out authBufferSize);
             AllocatedBuffers.Add(authBuffer);
@@ -92,5 +98,33 @@ namespace CredUICredential.Tests.Fakes
             out uint authBufferSize,
             out int lastError)
             => _real.TryPackAuthenticationBuffer(userName, out authBuffer, out authBufferSize, out lastError);
+
+        /// <summary>
+        ///     Decodes the input buffer the module passed in, using the real
+        ///     <c>CredUnPackAuthenticationBuffer</c> with the unprotected flags that match how
+        ///     <see cref="Pinvoke.CredUiApi.TryPackAuthenticationBuffer"/> packs it.
+        /// </summary>
+        private static string DecodeSeededUserName(IntPtr inAuthBuffer, uint inAuthBufferSize)
+        {
+            if (inAuthBuffer == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            var userName = new StringBuilder(CREDUI.MAX_USERNAME_LENGTH);
+            var domain = new StringBuilder(CREDUI.MAX_DOMAIN_TARGET_LENGTH);
+            var password = new StringBuilder(CREDUI.MAX_PASSWORD_LENGTH);
+            var userNameCapacity = CREDUI.MAX_USERNAME_LENGTH;
+            var domainCapacity = CREDUI.MAX_DOMAIN_TARGET_LENGTH;
+            var passwordCapacity = CREDUI.MAX_PASSWORD_LENGTH;
+
+            var unpacked = CREDUI.CredUnPackAuthenticationBuffer(
+                0, inAuthBuffer, inAuthBufferSize,
+                userName, ref userNameCapacity,
+                domain, ref domainCapacity,
+                password, ref passwordCapacity);
+
+            return unpacked ? userName.ToString() : null;
+        }
     }
 }
