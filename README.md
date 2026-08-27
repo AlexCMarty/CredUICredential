@@ -29,7 +29,10 @@ Overall, `Get-Credential` gets the job done, but it isn't the _best_ experience 
 
 ## How does CredUICredential address these problems?
 
-CredUICredential is a Powershell 7 module written in C# atop .NET 10.0. It uses P/Invoke to wrap **credui.dll**.
+CredUICredential is a PowerShell module written in C# atop .NET 10. It uses P/Invoke to wrap **credui.dll**.
+
+Because it is a binary module built for .NET 10, it needs a PowerShell host running on .NET 10: **PowerShell 7.6
+or later**, on Windows.
 
 Specifically, it calls `CredUIPromptForWindowsCredentials`, the same native API behind the modern (Vista+) Windows
 credential dialog you already see for things like UAC elevation and RDP logins. Because it's a real Windows dialog
