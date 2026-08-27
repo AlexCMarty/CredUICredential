@@ -225,7 +225,6 @@ namespace CredUICredential
             return process.MainWindowHandle;
         }
 
-
         /// <summary>
         ///     Returns a DialogResult from the specified code.
         /// </summary>
