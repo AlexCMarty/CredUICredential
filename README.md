@@ -64,9 +64,6 @@ On top of that baseline, it adds a couple of small conveniences:
   anything on its own — actually persisting the credential (or not) based on `$result.Checkbox` is up to
   your script.
 
-One limitation carried over from the underlying API: you cannot pre-fill the `-UserName` parameter. The modern
-CredUI dialog doesn't expose a way to seed the username field, so the user always has to type it themselves.
-
 ## Usage
 
 ```powershell

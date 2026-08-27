@@ -132,10 +132,6 @@ no blank lines) to avoid it. Separately, `Update-MarkdownCommandHelp` unconditio
 every run; that's expected and harmless — the "Online Version" link in the shipped XML comes from the
 `HelpUri` front matter, not from that section — so leave both alone rather than fighting the regeneration.
 
-## Known limitation
-
-`-UserName` is accepted for `Get-Credential` compatibility but has no effect: the modern CredUI
-dialog offers no way to pre-populate the user name field. Seeding it would mean building an input
-buffer with `CredPackAuthenticationBuffer` and passing it to `CredUIPromptForWindowsCredentials` —
-possible, but not implemented. The README, `CredUICredential.md` and the MAML help all say so; keep
-them saying so unless it actually gets built.
+`-UserName` pre-populates the dialog's user name field by packing it with `CredPackAuthenticationBuffer`
+and passing the result as `CredUIPromptForWindowsCredentials`'s input buffer (`CredentialsDialog.ShowDialog`).
+The user can still edit or replace it before submitting.

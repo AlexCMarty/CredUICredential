@@ -180,8 +180,8 @@ HelpMessage: ''
 
 ### -UserName
 
-Specifies the user name to use while creating the PSCredential. The CredUI modern dialog does not support
-pre-populating the user name, so this value has no effect on the dialog that is displayed.
+Specifies the user name to pre-populate in the dialog's user name field. The user can still edit it or type a
+different name; this only sets the initial value.
 
 ```yaml
 Type: System.String
@@ -226,10 +226,6 @@ Returned only when ShowSaveCheckbox is used. Has a Credential property (the PSCr
 and a Checkbox property (a boolean indicating whether the Save check box was checked).
 
 ## NOTES
-
-The modern CredUI dialog offers no way to pre-populate the user name field. `-UserName` is accepted for
-compatibility with `Get-Credential`, but it has no effect on the dialog that is shown: the user always types their
-own name.
 
 This module is a maintained fork of the archived Get-WinCredential module by Zafer Balkan.
 
