@@ -225,15 +225,6 @@ namespace CredUICredential
             return process.MainWindowHandle;
         }
 
-        private static SecureString ConvertToSecureString(string value)
-        {
-            var secureString = new SecureString();
-            foreach (var c in value)
-            {
-                secureString.AppendChar(c);
-            }
-            return secureString;
-        }
 
         /// <summary>
         ///     Returns a DialogResult from the specified code.
@@ -302,7 +293,7 @@ namespace CredUICredential
         private void SetCredentials(StringBuilder n, StringBuilder domain, StringBuilder pw)
         {
             _name = Qualify(n.ToString(), domain.ToString());
-            _password = ConvertToSecureString(pw.ToString());
+            _password = Plaintext.ToSecureString(pw);
         }
 
         /// <summary>
@@ -350,14 +341,30 @@ namespace CredUICredential
                 var domain = new StringBuilder(domainCapacity);
                 var password = new StringBuilder(passwordCapacity);
 
-                if (_api.TryUnpackAuthenticationBuffer(
+                bool unpacked;
+                try
+                {
+                    unpacked = _api.TryUnpackAuthenticationBuffer(
                         authBuffer, authBufferSize,
                         userName, ref userNameCapacity,
                         domain, ref domainCapacity,
                         password, ref passwordCapacity,
-                        out lastError))
+                        out lastError);
+
+                    if (unpacked)
+                    {
+                        SetCredentials(userName, domain, password);
+                    }
+                }
+                finally
                 {
-                    SetCredentials(userName, domain, password);
+                    // The password is out of the buffer now, one way or the other. A failed first
+                    // attempt can still have left part of it behind.
+                    Plaintext.Overwrite(password);
+                }
+
+                if (unpacked)
+                {
                     return true;
                 }
 
