@@ -32,8 +32,10 @@
     # Description of the functionality provided by this module
     Description       = 'Gets a credential object based on a user name and password. It uses Windows native dialogs even on PowerShell 7.x, instead of terminal. A maintained fork of the archived Get-WinCredential module by Zafer Balkan, with a fix for the modern-dialog password decryption bug.'
 
-    # Minimum version of the PowerShell engine required by this module
-    PowerShellVersion = '7.0'
+    # Minimum version of the PowerShell engine required by this module.
+    # This is a binary module built for .NET 10, so it needs a host running on .NET 10:
+    # PowerShell 7.6 is the first release that does.
+    PowerShellVersion = '7.6'
 
     # Name of the PowerShell host required by this module
     # PowerShellHostName = ''
