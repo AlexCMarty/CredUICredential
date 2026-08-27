@@ -67,5 +67,23 @@ namespace CredUICredential.Pinvoke
         ///     Releases a buffer obtained from <see cref="PromptForWindowsCredentials"/>.
         /// </summary>
         void FreeAuthenticationBuffer(IntPtr authBuffer, uint authBufferSize);
+
+        /// <summary>
+        ///     Encodes a user name into the buffer format <see cref="PromptForWindowsCredentials"/>
+        ///     accepts as an input buffer to seed. See <c>CredPackAuthenticationBuffer</c>.
+        /// </summary>
+        /// <param name="authBuffer">
+        ///     Receives a buffer allocated by this call. The caller owns it and must hand it back to
+        ///     <see cref="FreeAuthenticationBuffer"/>.
+        /// </param>
+        /// <param name="lastError">
+        ///     The Win32 error captured immediately after a failed call.
+        /// </param>
+        /// <returns> <see langword="true"/> if the user name was packed. </returns>
+        bool TryPackAuthenticationBuffer(
+            string userName,
+            out IntPtr authBuffer,
+            out uint authBufferSize,
+            out int lastError);
     }
 }

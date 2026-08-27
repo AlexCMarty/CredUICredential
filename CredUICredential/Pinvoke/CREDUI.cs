@@ -43,5 +43,12 @@ namespace CredUICredential.Pinvoke
             ref int pcchMaxDomainame,
             StringBuilder pszPassword,
             ref int pcchMaxPassword);
+
+        [DllImport("credui.dll", CharSet = CharSet.Unicode, SetLastError = true, CallingConvention = CallingConvention.Winapi)]
+        internal static extern bool CredPackAuthenticationBuffer(int dwFlags,
+            string pszUserName,
+            string pszPassword,
+            IntPtr pPackedCredentials,
+            ref int pcbPackedCredentials);
     }
 }

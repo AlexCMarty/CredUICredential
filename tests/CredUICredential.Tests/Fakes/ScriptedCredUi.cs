@@ -136,5 +136,17 @@ namespace CredUICredential.Tests.Fakes
 
         public void FreeAuthenticationBuffer(IntPtr authBuffer, uint authBufferSize)
             => FreedBuffers.Add(authBuffer);
+
+        public bool TryPackAuthenticationBuffer(
+            string userName,
+            out IntPtr authBuffer,
+            out uint authBufferSize,
+            out int lastError)
+        {
+            authBuffer = IntPtr.Zero;
+            authBufferSize = 0;
+            lastError = 0;
+            return true;
+        }
     }
 }

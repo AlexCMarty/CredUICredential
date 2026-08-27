@@ -73,6 +73,41 @@ namespace CredUICredential.Pinvoke
             Marshal.FreeCoTaskMem(authBuffer);
         }
 
+        public bool TryPackAuthenticationBuffer(
+            string userName,
+            out IntPtr authBuffer,
+            out uint authBufferSize,
+            out int lastError)
+        {
+            var required = 0;
+
+            // The documented way to ask for the size: call with no buffer and expect failure.
+            CREDUI.CredPackAuthenticationBuffer(0, userName, string.Empty, IntPtr.Zero, ref required);
+
+            if (required <= 0)
+            {
+                authBuffer = IntPtr.Zero;
+                authBufferSize = 0;
+                lastError = Marshal.GetLastWin32Error();
+                return false;
+            }
+
+            var buffer = Marshal.AllocCoTaskMem(required);
+            if (!CREDUI.CredPackAuthenticationBuffer(0, userName, string.Empty, buffer, ref required))
+            {
+                lastError = Marshal.GetLastWin32Error();
+                Marshal.FreeCoTaskMem(buffer);
+                authBuffer = IntPtr.Zero;
+                authBufferSize = 0;
+                return false;
+            }
+
+            authBuffer = buffer;
+            authBufferSize = (uint)required;
+            lastError = 0;
+            return true;
+        }
+
         /// <summary>
         ///     Overwrites <paramref name="size"/> bytes at <paramref name="buffer"/> with zeroes.
         /// </summary>
