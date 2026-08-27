@@ -68,7 +68,9 @@ namespace CredUICredential.Pinvoke
             }
 
             Scrub(authBuffer, authBufferSize);
-            CREDUI.CoTaskMemFree(authBuffer);
+
+            // The prompt allocates through the COM task allocator, which is what this releases.
+            Marshal.FreeCoTaskMem(authBuffer);
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -22,7 +22,7 @@ namespace CredUICredential.Pinvoke
         public const int MAX_USERNAME_LENGTH = 513;
         public const int MAX_PASSWORD_LENGTH = 256;
 
-        [DllImport("credui.dll", CharSet = CharSet.Unicode, SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("credui.dll", CharSet = CharSet.Unicode, SetLastError = true, CallingConvention = CallingConvention.Winapi)]
         internal static extern ReturnCodes CredUIPromptForWindowsCredentials(ref CREDUI.INFO notUsedHere,
             int authError,
             ref uint authPackage,
@@ -33,7 +33,7 @@ namespace CredUICredential.Pinvoke
             ref bool fSave,
             FLAGS flags);
 
-        [DllImport("credui.dll", CharSet = CharSet.Unicode, SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("credui.dll", CharSet = CharSet.Unicode, SetLastError = true, CallingConvention = CallingConvention.Winapi)]
         internal static extern bool CredUnPackAuthenticationBuffer(int dwFlags,
             IntPtr pAuthBuffer,
             uint cbAuthBuffer,
@@ -43,8 +43,5 @@ namespace CredUICredential.Pinvoke
             ref int pcchMaxDomainame,
             StringBuilder pszPassword,
             ref int pcchMaxPassword);
-
-        [DllImport("ole32.dll", CharSet = CharSet.Unicode, SetLastError = true, CallingConvention = CallingConvention.Cdecl)]
-        public static extern void CoTaskMemFree(IntPtr ptr);
     }
 }
