@@ -28,6 +28,15 @@ namespace CredUICredential
         private bool _saveChecked;
 
         /// <summary>
+        ///     Gets the state of the Save check box when the dialog was dismissed.
+        /// </summary>
+        /// <remarks>
+        ///     Only meaningful when the dialog was shown with <c>showSaveCheckbox: true</c>; the
+        ///     underlying API ignores and does not populate this value otherwise.
+        /// </remarks>
+        public bool SaveChecked => _saveChecked;
+
+        /// <summary>
         ///     Gets or sets the password for the credentials.
         /// </summary>
         public SecureString Password
@@ -167,8 +176,12 @@ namespace CredUICredential
         ///     checkbox status.
         /// </summary>
         /// <param name="username"> The username for the credentials. </param>
+        /// <param name="showSaveCheckbox">
+        ///     Whether the dialog should display the Save check box. See <see cref="SaveChecked"/>
+        ///     for the checkbox state after the dialog is dismissed.
+        /// </param>
         /// <returns> Returns a DialogResult indicating the user action. </returns>
-        public DialogResult Show(string username = "")
+        public DialogResult Show(string username = "", bool showSaveCheckbox = false)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -181,7 +194,7 @@ namespace CredUICredential
             var owner = new NativeWindow();
             owner.AssignHandle(Process.GetCurrentProcess().MainWindowHandle);
 
-            return ShowDialog(owner);
+            return ShowDialog(owner, showSaveCheckbox);
         }
 
         private static SecureString ConvertToSecureString(string value)
@@ -227,11 +240,15 @@ namespace CredUICredential
         /// <summary>
         ///     Returns the flags for dialog display options.
         /// </summary>
-        private CREDUI.FLAGS GetFlags()
+        /// <param name="showSaveCheckbox"> Whether to include the Save check box in the dialog. </param>
+        private static CREDUI.FLAGS GetFlags(bool showSaveCheckbox)
         {
-            // It is possible to improve using the flags but for most use cases, using
-            // GENERIC is more than enough. But we need to enumerate the domain, etc.
-            return CREDUI.FLAGS.CREDUIWIN_AUTHPACKAGE_ONLY;
+            var flags = CREDUI.FLAGS.CREDUIWIN_AUTHPACKAGE_ONLY;
+            if (showSaveCheckbox)
+            {
+                flags |= CREDUI.FLAGS.CREDUIWIN_CHECKBOX;
+            }
+            return flags;
         }
 
         /// <summary>
@@ -262,11 +279,12 @@ namespace CredUICredential
         /// <param name="owner">
         ///     The System.Windows.Forms.IWin32Window the dialog will display in front of.
         /// </param>
+        /// <param name="showSaveCheckbox"> Whether to include the Save check box in the dialog. </param>
         /// <remarks>
         ///     Sets the username, password and SaveChecked accessors to the state of the dialog as
         ///     it was dismissed by the user.
         /// </remarks>
-        private DialogResult ShowDialog(IWin32Window owner)
+        private DialogResult ShowDialog(IWin32Window owner, bool showSaveCheckbox)
         {
             // set the API call parameters
             var name = new StringBuilder(CREDUI.MAX_USERNAME_LENGTH);
@@ -275,7 +293,7 @@ namespace CredUICredential
             var info = GetInfo(owner);
             // make the API call
             uint authPackage = 0;
-            var flags = GetFlags();
+            var flags = GetFlags(showSaveCheckbox);
             var code = CREDUI.CredUIPromptForWindowsCredentials(ref info,
                 0,
                 ref authPackage,

@@ -4,5 +4,3 @@
 // a specific target and scoped to a namespace, type, member, etc.
 
 using System.Diagnostics.CodeAnalysis;
-
-[assembly: SuppressMessage("Performance", "U2U1002:Method can be declared static", Justification = "<Pending>", Scope = "member", Target = "~M:CredUICredential.CredentialsDialog.GetFlags~CredUICredential.Pinvoke.CREDUI.FLAGS")]
