@@ -47,6 +47,19 @@ On top of that baseline, it adds a couple of small conveniences:
 - `-Message` lets you customize the text shown in the dialog, same as `Get-Credential`.
 - `-Title` lets you customize the dialog's window caption. This is particularly useful with password managers
   like KeePass that match a window's title to decide which stored credentials to auto-type into it.
+- `-ShowSaveCheckbox` adds the native "Save" check box to the dialog. When you use this switch,
+  `Get-CredUICredential` returns an object with `Credential` and `Checkbox` properties instead of a bare
+  `PSCredential`, since there are now two things to report back:
+
+  ```powershell
+      $result = Get-CredUICredential -ShowSaveCheckbox
+      $result.Credential # a PSCredential, same as always
+      $result.Checkbox   # $true or $false, depending on whether the box was checked
+  ```
+
+  Note that Windows does not let this checkbox's label be customized, and checking it doesn't save
+  anything on its own — actually persisting the credential (or not) based on `$result.Checkbox` is up to
+  your script.
 
 One limitation carried over from the underlying API: you cannot pre-fill the `-UserName` parameter. The modern
 CredUI dialog doesn't expose a way to seed the username field, so the user always has to type it themselves.

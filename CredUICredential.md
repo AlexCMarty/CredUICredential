@@ -67,3 +67,15 @@ This command gets a credential object and saves it in the `$creds` variable.
 ```
 
 Exports $creds as is.
+
+## Example
+
+```powershell
+    $result = Get-CredUICredential -ShowSaveCheckbox
+    $result.Credential
+    $result.Checkbox
+```
+
+Shows the dialog with a Save check box. Since there are now two things to report, the cmdlet returns an
+object with `Credential` and `Checkbox` properties instead of a bare `PSCredential`. The checkbox's label
+cannot be customized, and checking it does not save anything by itself; that is left to the caller.
