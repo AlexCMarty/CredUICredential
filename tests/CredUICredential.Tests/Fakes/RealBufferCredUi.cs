@@ -43,8 +43,12 @@ namespace CredUICredential.Tests.Fakes
         /// <summary>The input buffer the module passed in, decoded back to a user name, if any.</summary>
         public string SeededUserName { get; private set; }
 
+        /// <summary>The <c>dwAuthError</c> the module passed into the prompt.</summary>
+        public int RequestedAuthError { get; private set; }
+
         public CREDUI.ReturnCodes PromptForWindowsCredentials(
             ref CREDUI.INFO info,
+            int authError,
             ref uint authPackage,
             IntPtr inAuthBuffer,
             uint inAuthBufferSize,
@@ -55,6 +59,7 @@ namespace CredUICredential.Tests.Fakes
         {
             RequestedFlags = flags;
             RequestedInfo = info;
+            RequestedAuthError = authError;
             SeededUserName = DecodeSeededUserName(inAuthBuffer, inAuthBufferSize);
 
             authBuffer = CredentialBuffer.Pack(UserName, Password, out authBufferSize);

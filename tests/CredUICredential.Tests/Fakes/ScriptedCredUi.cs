@@ -60,6 +60,9 @@ namespace CredUICredential.Tests.Fakes
         /// <summary>The user name last handed to <see cref="TryPackAuthenticationBuffer"/>, if any.</summary>
         public string PackedUserName { get; private set; }
 
+        /// <summary>Every user name packed into an input buffer, in order.</summary>
+        public List<string> PackedUserNames { get; } = new();
+
         /// <summary>The input buffer the module passed into the prompt, if any.</summary>
         public IntPtr? RequestedInAuthBuffer { get; private set; }
 
@@ -74,10 +77,38 @@ namespace CredUICredential.Tests.Fakes
 
         public int PromptCount { get; private set; }
 
+        /// <summary>Every <c>dwAuthError</c> the module passed into the prompt, in order.</summary>
+        public List<int> RequestedAuthErrors { get; } = new();
+
+        /// <summary>
+        ///     When non-empty, the user name unpacked on each prompt, in order. Otherwise
+        ///     <see cref="UserName"/> is used every time.
+        /// </summary>
+        public List<string> UserNamesByAttempt { get; } = new();
+
+        /// <summary>
+        ///     When non-empty, the password unpacked on each prompt, in order. Otherwise
+        ///     <see cref="Password"/> is used every time.
+        /// </summary>
+        public List<string> PasswordsByAttempt { get; } = new();
+
+        /// <summary>
+        ///     When non-empty, the prompt result on each attempt, in order. Otherwise
+        ///     <see cref="PromptResult"/> is used every time.
+        /// </summary>
+        public List<CREDUI.ReturnCodes> PromptResultsByAttempt { get; } = new();
+
+        /// <summary>
+        ///     When non-empty, the Save check box on each prompt, in order. Otherwise
+        ///     <see cref="SaveChecked"/> is used every time.
+        /// </summary>
+        public List<bool> SaveCheckedByAttempt { get; } = new();
+
         internal readonly record struct Capacities(int UserName, int Domain, int Password);
 
         public CREDUI.ReturnCodes PromptForWindowsCredentials(
             ref CREDUI.INFO info,
+            int authError,
             ref uint authPackage,
             IntPtr inAuthBuffer,
             uint inAuthBufferSize,
@@ -87,16 +118,18 @@ namespace CredUICredential.Tests.Fakes
             CREDUI.FLAGS flags)
         {
             PromptCount++;
+            RequestedAuthErrors.Add(authError);
             RequestedInfo = info;
             RequestedInAuthBuffer = inAuthBuffer;
             RequestedInAuthBufferSize = inAuthBufferSize;
 
-            if (PromptResult != CREDUI.ReturnCodes.NO_ERROR)
+            var promptResult = At(PromptResultsByAttempt, PromptResult);
+            if (promptResult != CREDUI.ReturnCodes.NO_ERROR)
             {
                 // A failed prompt allocates nothing, so there is nothing for the caller to free.
                 authBuffer = IntPtr.Zero;
                 authBufferSize = 0;
-                return PromptResult;
+                return promptResult;
             }
 
             authBuffer = Buffer;
@@ -104,7 +137,7 @@ namespace CredUICredential.Tests.Fakes
 
             if ((flags & CREDUI.FLAGS.CREDUIWIN_CHECKBOX) != 0)
             {
-                save = SaveChecked;
+                save = At(SaveCheckedByAttempt, SaveChecked);
             }
 
             return CREDUI.ReturnCodes.NO_ERROR;
@@ -129,9 +162,13 @@ namespace CredUICredential.Tests.Fakes
                 return false;
             }
 
-            var neededUserName = UserName.Length + 1;
-            var neededDomain = DomainName.Length + 1;
-            var neededPassword = Password.Length + 1;
+            var userNameValue = At(UserNamesByAttempt, UserName);
+            var domainValue = DomainName;
+            var passwordValue = At(PasswordsByAttempt, Password);
+
+            var neededUserName = userNameValue.Length + 1;
+            var neededDomain = domainValue.Length + 1;
+            var neededPassword = passwordValue.Length + 1;
 
             if (userNameCapacity < neededUserName
                 || domainNameCapacity < neededDomain
@@ -144,15 +181,26 @@ namespace CredUICredential.Tests.Fakes
                 return false;
             }
 
-            userName.Clear().Append(UserName);
-            domainName.Clear().Append(DomainName);
-            password.Clear().Append(Password);
+            userName.Clear().Append(userNameValue);
+            domainName.Clear().Append(domainValue);
+            password.Clear().Append(passwordValue);
 
-            userNameCapacity = UserName.Length;
-            domainNameCapacity = DomainName.Length;
-            passwordCapacity = Password.Length;
+            userNameCapacity = userNameValue.Length;
+            domainNameCapacity = domainValue.Length;
+            passwordCapacity = passwordValue.Length;
             lastError = 0;
             return true;
+        }
+
+        private T At<T>(List<T> sequence, T fallback)
+        {
+            if (sequence.Count == 0)
+            {
+                return fallback;
+            }
+
+            var index = Math.Max(PromptCount - 1, 0);
+            return index < sequence.Count ? sequence[index] : sequence[^1];
         }
 
         public void FreeAuthenticationBuffer(IntPtr authBuffer, uint authBufferSize)
@@ -165,6 +213,7 @@ namespace CredUICredential.Tests.Fakes
             out int lastError)
         {
             PackedUserName = userName;
+            PackedUserNames.Add(userName);
 
             if (PackFailsWith.HasValue)
             {

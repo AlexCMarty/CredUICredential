@@ -199,7 +199,10 @@ namespace CredUICredential
         ///     for the checkbox state after the dialog is dismissed.
         /// </param>
         /// <returns> Returns a DialogResult indicating the user action. </returns>
-        public DialogResult Show(string username = "", bool showSaveCheckbox = false)
+        /// <param name="authError">
+        ///     A Win32 error Windows should display on the dialog, or zero for none.
+        /// </param>
+        public DialogResult Show(string username = "", bool showSaveCheckbox = false, int authError = 0)
         {
             if (string.IsNullOrEmpty(username))
             {
@@ -208,7 +211,7 @@ namespace CredUICredential
             UserName = username;
             _saveChecked = false;
 
-            return ShowDialog(GetOwnerHandle(), showSaveCheckbox);
+            return ShowDialog(GetOwnerHandle(), showSaveCheckbox, authError);
         }
 
         /// <summary>
@@ -396,7 +399,7 @@ namespace CredUICredential
         ///     Sets the username, password and SaveChecked accessors to the state of the dialog as
         ///     it was dismissed by the user.
         /// </remarks>
-        private DialogResult ShowDialog(IntPtr owner, bool showSaveCheckbox)
+        private DialogResult ShowDialog(IntPtr owner, bool showSaveCheckbox, int authError)
         {
             // set the API call parameters
             var info = GetInfo(owner);
@@ -420,6 +423,7 @@ namespace CredUICredential
             {
                 var code = _api.PromptForWindowsCredentials(
                     ref info,
+                    authError,
                     ref authPackage,
                     inAuthBuffer,
                     inAuthBufferSize,

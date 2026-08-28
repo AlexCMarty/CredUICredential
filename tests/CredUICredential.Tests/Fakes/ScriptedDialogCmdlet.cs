@@ -20,8 +20,22 @@ namespace CredUICredential.Tests
         /// </summary>
         internal static ScriptedCredUi Api { get; set; }
 
+        /// <summary>
+        ///     The stand-in the next invocation will log on through, when a retry switch is used.
+        /// </summary>
+        internal static ILogonApi Logon { get; set; }
+
+        internal static int LogonApiCreations { get; set; }
+
         internal override CredentialsDialog CreateDialog()
             => new(Api, caption: Title, message: Message);
+
+        internal override ILogonApi CreateLogonApi()
+        {
+            LogonApiCreations++;
+            return Logon ?? throw new System.InvalidOperationException(
+                "A retry was requested but no ILogonApi was configured.");
+        }
     }
 
     /// <summary>
@@ -31,9 +45,11 @@ namespace CredUICredential.Tests
     {
         private readonly Runspace _runspace;
 
-        public ScriptedDialogHost(ScriptedCredUi api)
+        public ScriptedDialogHost(ScriptedCredUi api, ILogonApi logon = null)
         {
             ScriptedDialogCmdlet.Api = api;
+            ScriptedDialogCmdlet.Logon = logon;
+            ScriptedDialogCmdlet.LogonApiCreations = 0;
 
             var state = InitialSessionState.CreateDefault();
             state.Commands.Add(new SessionStateCmdletEntry(
@@ -65,6 +81,8 @@ namespace CredUICredential.Tests
         {
             _runspace.Dispose();
             ScriptedDialogCmdlet.Api = null;
+            ScriptedDialogCmdlet.Logon = null;
+            ScriptedDialogCmdlet.LogonApiCreations = 0;
         }
     }
 }

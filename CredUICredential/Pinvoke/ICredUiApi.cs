@@ -33,8 +33,13 @@ namespace CredUICredential.Pinvoke
         ///     A buffer to seed the dialog with, from <see cref="TryPackAuthenticationBuffer"/>, or
         ///     <see cref="IntPtr.Zero"/> for none.
         /// </param>
+        /// <param name="authError">
+        ///     A Win32 error to display on the dialog, or zero for none. See
+        ///     <c>CredUIPromptForWindowsCredentials</c>'s <c>dwAuthError</c>.
+        /// </param>
         CREDUI.ReturnCodes PromptForWindowsCredentials(
             ref CREDUI.INFO info,
+            int authError,
             ref uint authPackage,
             IntPtr inAuthBuffer,
             uint inAuthBufferSize,

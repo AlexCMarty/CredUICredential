@@ -64,6 +64,11 @@ On top of that baseline, it adds a couple of small conveniences:
   Note that Windows does not let this checkbox's label be customized, and checking it doesn't save
   anything on its own — actually persisting the credential (or not) based on `$result.Checkbox` is up to
   your script.
+- `-RetryNormalUser` keeps the dialog up until the password logs on against this computer (or its domain),
+  the user cancels, or `-MaxAttempts` is used up (default 3, range 1–10). A wrong password restyles the
+  dialog with Windows' native error banner. Cancel writes nothing; using up the attempts writes an error.
+- `-RetryAdminUser` does the same, but the account must also be a member of the local Administrators group.
+  The two retry switches cannot be combined.
 
 ## Usage
 

@@ -19,10 +19,11 @@ dialog, so scripts get a real Windows prompt instead of `Get-Credential`'s termi
 It is a maintained fork of the archived [Get-WinCredential](https://github.com/zbalkan/Get-WinCredential).
 
 `Get-CredUICredential` is meant to be a **drop-in replacement** for the built-in `Get-Credential`:
-same parameters, same parameter sets, same output, plus `-ShowSaveCheckbox`. `DropInParityTests`
-enforces this by comparing the two command surfaces at runtime, so a change to `Credential`,
-`Message`, `Title` or `UserName` binding that diverges from the built-in cmdlet fails the build.
-If you deliberately want to diverge, that test is the thing to argue with.
+same parameters, same parameter sets, same output, plus `-ShowSaveCheckbox`, `-RetryNormalUser`,
+`-RetryAdminUser` and `-MaxAttempts`. `DropInParityTests` enforces this by comparing the two command
+surfaces at runtime, so a change to `Credential`, `Message`, `Title` or `UserName` binding that
+diverges from the built-in cmdlet fails the build. If you deliberately want to diverge, that test is
+the thing to argue with.
 
 ## Commands
 
@@ -73,8 +74,9 @@ then `Publish-PSResource`. CI does the same on `v*` tags after the tag (minus `v
 | --- | --- |
 | `CredUICredential/GetCredUICredentialCmdlet.cs` | The cmdlet: parameters, output shape, error records |
 | `CredUICredential/CredentialsDialog.cs` | Everything around the native prompt: flags, buffers, decoding, cleanup |
+| `CredUICredential/LogonApi.cs` | `LogonUser` plus local Administrators membership, behind `ILogonApi` |
 | `CredUICredential/Plaintext.cs` | The window in which the password exists as characters |
-| `CredUICredential/Pinvoke/` | The `credui.dll` declarations and the `ICredUiApi` seam over them |
+| `CredUICredential/Pinvoke/` | The `credui.dll` / `advapi32.dll` declarations and the native seams over them |
 | `CredUICredential.psd1` | Module manifest — local `RootModule` points at `bin/Release`; the Gallery copy is rewritten |
 | `en-US/` | Culture folder; `Update-Help.ps1` writes `CredUICredential.dll-Help.xml` here (gitignored) |
 | `CredUICredential.md` | The PlatyPS source for the MAML, and the documentation `HelpUri` points at |
@@ -100,7 +102,11 @@ decode, a domain reported separately from the user name. It implements the docum
 `ERROR_INSUFFICIENT_BUFFER` protocol faithfully — refusing to write into a buffer that is too small
 and reporting the size it needs — so do not "simplify" that away.
 
-Both are injected through `internal CredentialsDialog(ICredUiApi api, ...)`. For cmdlet-level tests,
+**`ScriptedLogon`** replaces `LogonUser` for `-RetryNormalUser` / `-RetryAdminUser`. The retry loop
+lives on the cmdlet, so cmdlet tests inject it through `ScriptedDialogCmdlet.CreateLogonApi()` the
+same way they inject the dialog. Do not call the real `LogonApi` from a runspace test.
+
+Both credui stand-ins are injected through `internal CredentialsDialog(ICredUiApi api, ...)`. For cmdlet-level tests,
 `ScriptedDialogCmdlet` overrides `GetCredUICredentialCmdlet.CreateDialog()` and is registered in a
 real runspace under the cmdlet's real name, so parameter binding, output streams and error records
 are all genuine.
@@ -125,9 +131,9 @@ makes it correct.
 **The authentication buffer is ours and it holds the password in the clear.** It is released from a
 `finally` and zeroed on the way out. Do not move that release onto a success path.
 
-**Win32 calling convention.** The `credui.dll` imports must be `Winapi`. They were `Cdecl` for a
-long time, which is harmless on x64 (one calling convention) and corrupts the stack on the x86 build
-of PowerShell. The CI `test (x86)` job is what catches this; an x64 run cannot.
+**Win32 calling convention.** The `credui.dll` and `advapi32.dll` imports must be `Winapi`. They were
+`Cdecl` for a long time, which is harmless on x64 (one calling convention) and corrupts the stack on
+the x86 build of PowerShell. The CI `test (x86)` job is what catches this; an x64 run cannot.
 
 **The manifest and the assembly do not check each other.** `ModuleVersion` in `CredUICredential.psd1`
 and `<Version>` in `CredUICredential.csproj` are maintained by hand; `ModuleManifestTests` fails if
@@ -155,3 +161,9 @@ every run; that's expected and harmless — the "Online Version" link in the shi
 `-UserName` pre-populates the dialog's user name field by packing it with `CredPackAuthenticationBuffer`
 and passing the result as `CredUIPromptForWindowsCredentials`'s input buffer (`CredentialsDialog.ShowDialog`).
 The user can still edit or replace it before submitting.
+
+`-RetryNormalUser` and `-RetryAdminUser` call `LogonUser` with `LOGON32_LOGON_NETWORK` against this
+computer (unqualified names use the local SAM). "Administrator" means the local Administrators SID
+is present in `TokenGroups`, including the deny-only slot UAC uses on a filtered token.
+`CheckTokenMembership` would miss that. Only `ERROR_LOGON_FAILURE` is retried; lockout, disabled,
+and expired accounts stop immediately.

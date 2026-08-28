@@ -15,6 +15,7 @@ namespace CredUICredential.Tests
     ///     The cmdlet runs in a real runspace with a scripted <c>credui.dll</c> underneath, so
     ///     these assertions are about the objects a user would actually get back.
     /// </remarks>
+    [Collection("ScriptedDialog")]
     public class PromptedCredentialTests
     {
         private static string Reveal(PSCredential credential)

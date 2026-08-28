@@ -18,6 +18,7 @@ namespace CredUICredential.Pinvoke
 
         public CREDUI.ReturnCodes PromptForWindowsCredentials(
             ref CREDUI.INFO info,
+            int authError,
             ref uint authPackage,
             IntPtr inAuthBuffer,
             uint inAuthBufferSize,
@@ -27,7 +28,7 @@ namespace CredUICredential.Pinvoke
             CREDUI.FLAGS flags)
             => CREDUI.CredUIPromptForWindowsCredentials(
                 ref info,
-                0,
+                authError,
                 ref authPackage,
                 inAuthBuffer,
                 inAuthBufferSize,

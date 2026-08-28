@@ -5,7 +5,7 @@ HelpUri: https://github.com/AlexCMarty/CredUICredential/blob/master/CredUICreden
 Locale: en-US
 Module Guid: 7d7d0c54-14b3-4f7d-9c4a-bc8673d62258
 Module Name: CredUICredential
-ms.date: 08/27/2026
+ms.date: 08/28/2026
 PlatyPS schema version: 2024-05-01
 title: Get-CredUICredential
 ---
@@ -32,6 +32,20 @@ Get-CredUICredential [[-UserName] <String>] [-Message <String>] [-Title <String>
  [-ShowSaveCheckbox] [<CommonParameters>]
 ```
 
+### RetryNormalUserSet
+
+```
+Get-CredUICredential [[-UserName] <string>] -RetryNormalUser [-Message <string>] [-Title <string>]
+ [-ShowSaveCheckbox] [-MaxAttempts <int>]
+```
+
+### RetryAdminUserSet
+
+```
+Get-CredUICredential [[-UserName] <string>] -RetryAdminUser [-Message <string>] [-Title <string>]
+ [-ShowSaveCheckbox] [-MaxAttempts <int>]
+```
+
 ## ALIASES
 
 ## DESCRIPTION
@@ -44,7 +58,8 @@ itself shows for UAC elevation and RDP logins. Unlike `Get-Credential`, it never
 there is no registry entry that changes this.
 
 This cmdlet aims to be a drop-in alternative to `Get-Credential`. Its parameters and its output are the same, with
-one addition: `-ShowSaveCheckbox`. Refer to the `Get-Credential` documentation for advanced usages.
+a few additions: `-ShowSaveCheckbox`, `-RetryNormalUser`, `-RetryAdminUser`, and `-MaxAttempts`. Refer to the
+`Get-Credential` documentation for advanced usages.
 
 This module is a maintained fork of the archived [Get-WinCredential](https://github.com/zbalkan/Get-WinCredential) by
 Zafer Balkan. The code is based on the [Credential Management API examples by Alan Dean](https://www.developerfusion.com/code/4693/using-the-credential-management-api/).
@@ -88,6 +103,16 @@ Shows the dialog with a Save check box. Since there are now two things to report
 `Credential` and `Checkbox` properties instead of a bare `PSCredential`. The checkbox's label cannot be customized,
 and checking it does not save anything by itself; persisting the credential is left to the caller.
 
+### Example 6
+
+Get-CredUICredential -RetryNormalUser
+Shows the dialog, then checks the password against this computer (or its domain). A wrong password brings the dialog back with Windows' "incorrect" banner, up to three times by default. Cancel writes nothing; using up the attempts writes an error and returns nothing.
+
+### Example 7
+
+Get-CredUICredential -RetryAdminUser -MaxAttempts 5
+Same as `-RetryNormalUser`, but the account must also be a member of the local Administrators group. A valid non-admin account is treated like a wrong password: the dialog comes back, this time saying elevation is required.
+
 ## PARAMETERS
 
 ### -Credential
@@ -102,6 +127,34 @@ Aliases: []
 ParameterSets:
 - Name: CredentialSet
   Position: 0
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -MaxAttempts
+
+How many times the user may submit the dialog when `-RetryNormalUser` or `-RetryAdminUser` is used.
+Must be between 1 and 10. The default is 3. Cancel does not count as an attempt.
+
+```yaml
+Type: System.Int32
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: RetryNormalUserSet
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: RetryAdminUserSet
+  Position: Named
   IsRequired: false
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
@@ -128,6 +181,66 @@ ParameterSets:
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
+- Name: RetryNormalUserSet
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: RetryAdminUserSet
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -RetryAdminUser
+
+Shows the dialog again until the password logs on as a member of this computer's Administrators group, the user
+cancels, or `-MaxAttempts` is used up. Mutually exclusive with `-RetryNormalUser`. Validation is a network logon
+against this computer or its domain; a failed attempt counts toward account lockout. A locked, disabled, or expired
+account stops immediately with an error rather than prompting again.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: RetryAdminUserSet
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -RetryNormalUser
+
+Shows the dialog again until the password logs on, the user cancels, or `-MaxAttempts` is used up. An administrator
+account is accepted. Mutually exclusive with `-RetryAdminUser`. Validation is a network logon against this computer
+or its domain; a failed attempt counts toward account lockout. A locked, disabled, or expired account stops
+immediately with an error rather than prompting again.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: RetryNormalUserSet
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
 DontShow: false
 AcceptedValues: []
 HelpMessage: ''
@@ -146,6 +259,18 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: MessageSet
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: RetryNormalUserSet
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: RetryAdminUserSet
   Position: Named
   IsRequired: false
   ValueFromPipeline: false
@@ -173,6 +298,18 @@ ParameterSets:
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
+- Name: RetryNormalUserSet
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: RetryAdminUserSet
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
 DontShow: false
 AcceptedValues: []
 HelpMessage: ''
@@ -190,6 +327,18 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: MessageSet
+  Position: 0
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: RetryNormalUserSet
+  Position: 0
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: RetryAdminUserSet
   Position: 0
   IsRequired: false
   ValueFromPipeline: false
@@ -228,6 +377,10 @@ and a Checkbox property (a boolean indicating whether the Save check box was che
 ## NOTES
 
 This module is a maintained fork of the archived Get-WinCredential module by Zafer Balkan.
+
+`-RetryNormalUser` and `-RetryAdminUser` call `LogonUser` against this computer (or its domain). They cannot tell
+whether the password would work on some other host. Cancel still writes nothing; exhausting `-MaxAttempts` or a
+non-retryable logon error writes a non-terminating error.
 
 ## RELATED LINKS
 

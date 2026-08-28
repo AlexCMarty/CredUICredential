@@ -43,7 +43,9 @@ namespace CredUICredential.Tests
         public void SharedParametersBindExactlyLikeGetCredential()
         {
             var builtIn = Describe("Get-Credential");
-            var ours = Describe("Get-CredUICredential");
+            var ours = Describe("Get-CredUICredential")
+                .Where(line => line.Contains("|set=CredentialSet|") || line.Contains("|set=MessageSet|"))
+                .ToArray();
 
             Assert.NotEmpty(builtIn);
             Assert.Equal(builtIn, ours);
@@ -59,7 +61,7 @@ namespace CredUICredential.Tests
         }
 
         [Fact]
-        public void ShowSaveCheckboxIsTheOnlyParameterAddedOnTopOfGetCredential()
+        public void ExtraParametersOnTopOfGetCredentialAreTheDialogConveniences()
         {
             var extra = _host.Run(@"
                 $mine = (Get-Command Get-CredUICredential).Parameters.Keys
@@ -68,7 +70,9 @@ namespace CredUICredential.Tests
                 .Select(o => (string)o.BaseObject)
                 .ToArray();
 
-            Assert.Equal(new[] { "ShowSaveCheckbox" }, extra);
+            Assert.Equal(
+                new[] { "MaxAttempts", "RetryAdminUser", "RetryNormalUser", "ShowSaveCheckbox" },
+                extra);
         }
 
         [Fact]
@@ -77,11 +81,11 @@ namespace CredUICredential.Tests
             var sets = _host.Run(@"
                 (Get-Command Get-CredUICredential).ParameterSets |
                     Where-Object { 'ShowSaveCheckbox' -in $_.Parameters.Name } |
-                    ForEach-Object Name")
+                    ForEach-Object Name | Sort-Object")
                 .Select(o => (string)o.BaseObject)
                 .ToArray();
 
-            Assert.Equal(new[] { "MessageSet" }, sets);
+            Assert.Equal(new[] { "MessageSet", "RetryAdminUserSet", "RetryNormalUserSet" }, sets);
         }
     }
 }
