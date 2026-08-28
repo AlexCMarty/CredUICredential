@@ -131,7 +131,7 @@ of PowerShell. The CI `test (x86)` job is what catches this; an x64 run cannot.
 
 **The manifest and the assembly do not check each other.** `ModuleVersion` in `CredUICredential.psd1`
 and `<Version>` in `CredUICredential.csproj` are maintained by hand; `ModuleManifestTests` fails if
-they drift. Tags are `v` plus that version (`v1.2.1.0`); the publish job refuses to ship if they
+they drift. Tags are `v` plus that version (`v1.3.0.0`); the publish job refuses to ship if they
 disagree. `PowerShellVersion` is likewise tied to the target framework — a binary module built for
 .NET 10 needs PowerShell 7.6 or later, and understating that just turns a clear error into an
 assembly load failure.
