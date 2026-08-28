@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
@@ -9,24 +10,41 @@ using Xunit;
 namespace CredUICredential.Tests
 {
     /// <summary>
-    ///     The MAML file is what Get-Help prints. It is written by hand, it is not generated from
-    ///     anything, and nothing about adding or renaming a parameter forces anyone to touch it -
-    ///     so it rots quietly, and the first person to notice is a user reading documentation for a
-    ///     cmdlet that no longer works that way.
+    ///     The MAML file is what Get-Help prints. Update-Help.ps1 generates it from
+    ///     CredUICredential.md; it is not committed. CI regenerates it before these tests and
+    ///     ships it in the Gallery package. Locally, run the script before <c>dotnet test</c>
+    ///     on a clean tree.
     /// </summary>
     /// <remarks>
-    ///     These tests compare the file against the cmdlet type itself. They deliberately say
-    ///     nothing about the prose.
+    ///     These tests compare the generated file against the cmdlet type itself. They
+    ///     deliberately say nothing about the prose.
     /// </remarks>
     public class HelpDocumentationTests
     {
         private static readonly XNamespace Maml = "http://schemas.microsoft.com/maml/2004/10";
         private static readonly XNamespace Command = "http://schemas.microsoft.com/maml/dev/command/2004/10";
 
-        private static readonly XElement Help = XDocument
-            .Load(Repository.File("en-US/CredUICredential.dll-Help.xml").FullName)
-            .Descendants(Command + "command")
-            .Single();
+        private static readonly XElement Help = LoadHelp();
+
+        private static XElement LoadHelp()
+        {
+            FileInfo file;
+            try
+            {
+                file = Repository.File("en-US/CredUICredential.dll-Help.xml");
+            }
+            catch (FileNotFoundException exception)
+            {
+                throw new InvalidOperationException(
+                    "Generated help is missing. Run pwsh ./Update-Help.ps1 before the tests.",
+                    exception);
+            }
+
+            return XDocument
+                .Load(file.FullName)
+                .Descendants(Command + "command")
+                .Single();
+        }
 
         private static readonly CmdletAttribute Cmdlet =
             typeof(GetCredUICredentialCmdlet).GetCustomAttribute<CmdletAttribute>();

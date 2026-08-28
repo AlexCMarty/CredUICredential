@@ -1,5 +1,6 @@
 # CredUICredential
 
+[![CI](https://github.com/AlexCMarty/CredUICredential/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexCMarty/CredUICredential/actions/workflows/ci.yml)
 [![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/CredUICredential.svg)](https://www.powershellgallery.com/packages/CredUICredential)
 [![PowerShell Gallery Downloads](https://img.shields.io/powershellgallery/dt/CredUICredential.svg)](https://www.powershellgallery.com/packages/CredUICredential)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)

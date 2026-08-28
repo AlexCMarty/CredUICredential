@@ -3,8 +3,9 @@
 # CredUICredential.md is the source of truth: edit its prose (synopsis, description, examples,
 # parameter descriptions, notes) by hand. This script re-derives the structural facts - syntax,
 # parameter types, mandatory/pipeline-binding flags - fresh from the built cmdlet, merges them
-# with that prose, and writes the MAML. Run it after editing either the markdown or the cmdlet's
-# parameters, then commit both CredUICredential.md and the regenerated XML.
+# with that prose, and writes the MAML. The XML is a build artifact: CI generates it before
+# tests and ships it in the Gallery package. Do not commit it. Run this before `dotnet test`
+# on a clean tree, and after editing the markdown or the cmdlet's parameters.
 #
 # Requires the Microsoft.PowerShell.PlatyPS module (installed automatically for the current user
 # if missing) and a PowerShell 7.6+ host, matching the module's own minimum version.
@@ -20,8 +21,10 @@ $helpOutputFolder = Join-Path $repoRoot 'en-US'
 $dllPath = Join-Path $repoRoot 'CredUICredential\bin\Debug\net10.0-windows\CredUICredential.dll'
 
 if (-not (Get-Module -ListAvailable -Name Microsoft.PowerShell.PlatyPS)) {
-    Install-Module -Name Microsoft.PowerShell.PlatyPS -Scope CurrentUser -Force
+    Install-PSResource -Name Microsoft.PowerShell.PlatyPS -Version 1.0.3 -Scope CurrentUser -TrustRepository
 }
+
+New-Item -ItemType Directory -Path $helpOutputFolder -Force | Out-Null
 
 dotnet build (Join-Path $repoRoot 'CredUICredential\CredUICredential.csproj') -c Debug
 if ($LASTEXITCODE -ne 0) {

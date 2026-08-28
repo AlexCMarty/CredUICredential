@@ -90,8 +90,9 @@ namespace CredUICredential.Tests
         [Fact]
         public void TheRootModuleIsWhereTheManifestSaysItIs()
         {
-            // Publish-Module packages what the manifest points at. If this is wrong the module
-            // uploads happily and then fails to import for everyone who installs it.
+            // Local Import-Module and ModuleManifestTests read this path. New-GalleryPackage.ps1
+            // rewrites RootModule in the staged copy; if the in-repo DLL is missing, that stage
+            // has nothing to copy and the Gallery package would be empty.
             Repository.File(Entry("RootModule").TrimStart('.', '\\'));
         }
 

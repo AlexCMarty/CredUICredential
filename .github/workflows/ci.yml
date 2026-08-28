@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  test:
+    name: test (${{ matrix.architecture }})
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        # x86 exists because Winapi vs Cdecl is silent on x64 and corrupts the
+        # stack on 32-bit PowerShell. setup-dotnet's architecture is an x86 SDK,
+        # so output paths stay bin/Release/<tfm>/ and ModuleManifestTests still
+        # find the DLL the in-repo psd1 points at.
+        architecture: [x64, x86]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+          architecture: ${{ matrix.architecture }}
+
+      - name: Generate MAML
+        run: ./Update-Help.ps1
+
+      - name: Test
+        run: dotnet test tests/CredUICredential.Tests/CredUICredential.Tests.csproj -c Release --logger "console;verbosity=minimal"
+
+  package:
+    needs: test
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Stage Gallery package
+        run: ./New-GalleryPackage.ps1
+
+      - name: Smoke-import the staged module
+        run: |
+          $module = Join-Path $PWD 'artifacts/CredUICredential/CredUICredential.psd1'
+          Import-Module $module -Force
+          Get-Command Get-CredUICredential -ErrorAction Stop | Out-Null
+          $help = Get-Help Get-CredUICredential
+          $description = ($help.Description | Out-String).Trim()
+          if ($description.Length -lt 40) {
+              throw "Get-Help did not load MAML (description was '$description')."
+          }
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: CredUICredential
+          path: artifacts/CredUICredential
+
+  publish:
+    needs: package
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-2025
+    environment: psgallery
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: CredUICredential
+          path: artifacts/CredUICredential
+
+      - name: Tag must match staged ModuleVersion
+        run: |
+          $tag = '${{ github.ref_name }}'
+          if ($tag -notmatch '^v(.+)$') {
+              throw "Tag '$tag' must look like v1.2.1.0"
+          }
+          $fromTag = $Matches[1]
+          $manifestPath = Join-Path $PWD 'artifacts/CredUICredential/CredUICredential.psd1'
+          $manifest = Import-PowerShellDataFile -LiteralPath $manifestPath
+          $fromManifest = [string]$manifest.ModuleVersion
+          if ($fromManifest -ne $fromTag) {
+              throw "Tag '$tag' does not match ModuleVersion '$fromManifest' in the staged package."
+          }
+
+      - name: Publish to the PowerShell Gallery
+        env:
+          PSGALLERY_API_KEY: ${{ secrets.PSGALLERY_API_KEY }}
+        run: |
+          if (-not $env:PSGALLERY_API_KEY) {
+              throw 'PSGALLERY_API_KEY is not set on the psgallery environment.'
+          }
+          Publish-PSResource -Path (Join-Path $PWD 'artifacts/CredUICredential') -Repository PSGallery -ApiKey $env:PSGALLERY_API_KEY
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create '${{ github.ref_name }}' --generate-notes --verify-tag

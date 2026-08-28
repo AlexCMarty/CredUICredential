@@ -31,26 +31,41 @@ dotnet build
 ```
 
 ```bash
-dotnet test tests/CredUICredential.Tests/CredUICredential.Tests.csproj
+dotnet test tests/CredUICredential.Tests/CredUICredential.Tests.csproj -c Release
 ```
+
+`ModuleManifestTests` asserts the Release DLL exists at the path the in-repo manifest points at,
+so Debug-only `dotnet test` fails that check. CI always uses `-c Release`.
 
 One test class, or one test:
 
 ```bash
-dotnet test tests/CredUICredential.Tests/CredUICredential.Tests.csproj --filter 'FullyQualifiedName~CredentialsDialogTests'
+dotnet test tests/CredUICredential.Tests/CredUICredential.Tests.csproj -c Release --filter 'FullyQualifiedName~CredentialsDialogTests'
 ```
 
-Note that an imported module locks `CredUICredential/bin/Release/**/CredUICredential.dll`, 
+Note that an imported module locks `CredUICredential/bin/Release/**/CredUICredential.dll`,
 so a Release build will fail to overwrite it until that PowerShell session exits.
 
-Regenerate the `Get-Help` MAML after editing `CredUICredential.md` or the cmdlet's parameters:
+On a clean tree the tests also need generated MAML (`en-US/CredUICredential.dll-Help.xml` is
+gitignored). CI runs this first; locally:
 
 ```bash
 pwsh ./Update-Help.ps1
 ```
 
-It installs `Microsoft.PowerShell.PlatyPS` for the current user if missing, builds Debug (not
-Release, so it never collides with the lock above), and writes `en-US/CredUICredential.dll-Help.xml`.
+It installs `Microsoft.PowerShell.PlatyPS` 1.0.3 for the current user if missing, builds Debug
+(not Release, so it never collides with the lock above), and writes
+`en-US/CredUICredential.dll-Help.xml`. Do not commit that XML; CI regenerates it and
+`New-GalleryPackage.ps1` puts it in the Gallery package.
+
+```bash
+pwsh ./New-GalleryPackage.ps1
+```
+
+Stages `artifacts/CredUICredential/` (DLL + rewritten manifest + MAML). `publish.ps1` stages
+then `Publish-PSResource`. CI does the same on `v*` tags after the tag (minus `v`) matches
+`ModuleVersion`. Gallery key: `PSGALLERY_API_KEY` on the `psgallery` GitHub Environment, or
+`.apikey` locally.
 
 ## Layout
 
@@ -60,10 +75,13 @@ Release, so it never collides with the lock above), and writes `en-US/CredUICred
 | `CredUICredential/CredentialsDialog.cs` | Everything around the native prompt: flags, buffers, decoding, cleanup |
 | `CredUICredential/Plaintext.cs` | The window in which the password exists as characters |
 | `CredUICredential/Pinvoke/` | The `credui.dll` declarations and the `ICredUiApi` seam over them |
-| `CredUICredential.psd1` | Module manifest — what the Gallery publishes |
-| `en-US/CredUICredential.dll-Help.xml` | Generated MAML; this is what `Get-Help` prints. Do not hand-edit |
+| `CredUICredential.psd1` | Module manifest — local `RootModule` points at `bin/Release`; the Gallery copy is rewritten |
+| `en-US/` | Culture folder; `Update-Help.ps1` writes `CredUICredential.dll-Help.xml` here (gitignored) |
 | `CredUICredential.md` | The PlatyPS source for the MAML, and the documentation `HelpUri` points at |
 | `Update-Help.ps1` | Regenerates the MAML from `CredUICredential.md` — run after editing either |
+| `New-GalleryPackage.ps1` | Stages `artifacts/CredUICredential/` for `Publish-PSResource` |
+| `publish.ps1` | Stages, then publishes; uses `PSGALLERY_API_KEY` or `.apikey` |
+| `.github/workflows/ci.yml` | Windows test (x64 and x86), package, tag publish |
 | `tests/CredUICredential.Tests/` | xunit suite |
 
 ## Testing a modal dialog
@@ -109,11 +127,12 @@ makes it correct.
 
 **Win32 calling convention.** The `credui.dll` imports must be `Winapi`. They were `Cdecl` for a
 long time, which is harmless on x64 (one calling convention) and corrupts the stack on the x86 build
-of PowerShell. No test on an x64 machine can catch this.
+of PowerShell. The CI `test (x86)` job is what catches this; an x64 run cannot.
 
 **The manifest and the assembly do not check each other.** `ModuleVersion` in `CredUICredential.psd1`
 and `<Version>` in `CredUICredential.csproj` are maintained by hand; `ModuleManifestTests` fails if
-they drift. `PowerShellVersion` is likewise tied to the target framework — a binary module built for
+they drift. Tags are `v` plus that version (`v1.2.1.0`); the publish job refuses to ship if they
+disagree. `PowerShellVersion` is likewise tied to the target framework — a binary module built for
 .NET 10 needs PowerShell 7.6 or later, and understating that just turns a clear error into an
 assembly load failure.
 
@@ -121,8 +140,9 @@ assembly load failure.
 markdown-help file: its prose (synopsis, description, examples, parameter descriptions, notes) is what you
 edit by hand, but its structural sections (SYNTAX, the per-parameter YAML blocks) are re-derived from the
 live cmdlet every time `Update-Help.ps1` runs, not typed by hand. Editing a cmdlet's parameters means
-running that script, not touching XML. `HelpDocumentationTests` still compares the generated XML against
-the cmdlet type directly — that's what actually catches "changed the cmdlet, forgot to rerun the script."
+running that script, not touching XML. The XML is not committed; CI generates it before
+`HelpDocumentationTests`, which still compare that file against the cmdlet type. That catches a
+generator/markdown merge that does not match the cmdlet, not "forgot to commit the XML."
 
 **PlatyPS 1.0.3 has two rough edges to know about when editing `CredUICredential.md`.** Splitting an
 `EXAMPLES` entry into multiple markdown paragraphs (a blank line) makes `Export-MamlCommandHelp` emit a
