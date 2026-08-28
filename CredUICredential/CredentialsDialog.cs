@@ -254,9 +254,15 @@ namespace CredUICredential
         ///     Returns the flags for dialog display options.
         /// </summary>
         /// <param name="showSaveCheckbox"> Whether to include the Save check box in the dialog. </param>
+        /// <remarks>
+        ///     <c>CREDUIWIN_GENERIC</c> asks providers for a username and password in plain text.
+        ///     Other flags (notably <c>CREDUIWIN_AUTHPACKAGE_ONLY</c>) also surface PIN and smart-card
+        ///     choices whose packed buffers are not a reusable password, which this module cannot
+        ///     usefully return as a <c>PSCredential</c>.
+        /// </remarks>
         private static CREDUI.FLAGS GetFlags(bool showSaveCheckbox)
         {
-            var flags = CREDUI.FLAGS.CREDUIWIN_AUTHPACKAGE_ONLY;
+            var flags = CREDUI.FLAGS.CREDUIWIN_GENERIC;
             if (showSaveCheckbox)
             {
                 flags |= CREDUI.FLAGS.CREDUIWIN_CHECKBOX;
