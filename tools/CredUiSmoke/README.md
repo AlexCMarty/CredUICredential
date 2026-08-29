@@ -30,8 +30,13 @@ printed. A decoded password is reported only as a length and a character-class h
 is enough to tell real text from mojibake without disclosing it.
 
 Screenshots are of the credential dialog's own window and nothing else on the desktop, and the
-dialog never renders a typed password or PIN as anything but dots. `--shot-screen` captures the
-whole desktop instead, which is a deliberate choice to make, not a default.
+dialog renders a typed password or PIN as dots. `--shot-screen` captures the whole desktop
+instead, which is a deliberate choice to make, not a default.
+
+The one exception is the `peek` step, which holds the password box's reveal glyph down and
+captures while it is held. That capture shows the password in clear text — that is what it is
+for, and why it takes an explicit step to get one. Nothing else in the harness produces such a
+picture. Type a throwaway into a `type:` step for it, or use `secret:VARIABLE` and do not peek.
 
 CredUI does not validate what is typed, so `CREDUI_SMOKE_PASSWORD` can be any throwaway string.
 That is not true of a PIN: a wrong one counts against Windows Hello's own failure counter, so the
@@ -86,6 +91,76 @@ in the order they were taken; every path is printed. Capture is per-thread DPI a
 rectangle is right on a scaled display. A capture that comes back a single flat colour is called
 out as such: a `CREDUIWIN_SECURE_PROMPT` dialog lives on the secure desktop and cannot be
 photographed from here.
+
+## The dialog the cmdlet actually raises
+
+Every other command here calls `credui.dll` directly. That is the right tool for exploring the
+API — it can raise dialogs with any flags, including combinations the module never passes — and
+the wrong one for evidence, because a picture taken that way shows what Windows *can* draw rather
+than what a script gets. Three of the harness's own probes have a "Remember me" box that
+`Get-CredUICredential` only shows for `-ShowSaveCheckbox`, for exactly this reason.
+
+`cmdlet` closes that gap. It starts a PowerShell, imports the module, calls the cmdlet with
+whatever `--args` says, photographs the dialog, cancels it, and reports what the cmdlet produced.
+The flags, the auth-package seed and the message all come from the shipping path.
+
+```powershell
+# A bare call: what `$cred = Get-CredUICredential` puts on screen and nothing else.
+& $h cmdlet
+
+# With parameters, passed through verbatim.
+& $h cmdlet --args "-UserName johndoe -ShowSaveCheckbox"
+```
+
+The window is found by its message text. With no `-Message` that is the cmdlet's own default,
+`Enter your credentials.`, which `cmdlet` looks for without being told — so a bare call needs no
+arguments at all. Since every such dialog looks identical, the handles of the credential dialogs
+already on the desktop are noted before the child starts, and only a *new* window counts; a prompt
+stranded by an earlier run cannot be mistaken for this one. If `--args` passes its own `-Message`,
+pass `--label` with the same text, or the harness is looking for the wrong window.
+
+The child reports the shape of what came back — output type, user name, the *length* of the
+password, the checkbox — never the credential itself.
+
+## Step scripts
+
+A capture of an untouched prompt only ever shows one of the states the dialog has. The interesting
+ones exist only after somebody has interacted with it, and there is nobody at the keyboard.
+`--step` is that somebody: repeatable, ordered, and accepted by `cmdlet`, `shot` and `drive`.
+
+```powershell
+# Type over a seeded user name, which means going through the tiles first: with -UserName the
+# name is static text, and "Use a different account" is what turns it back into a field.
+& $h cmdlet --args "-UserName johndoe -ShowSaveCheckbox" `
+    --step "click:More choices" `
+    --step "click:Switch to Local or domain account" `
+    --step "wait:1200" `
+    --step "focus:user" --step "clear" --step "type:CONTOSO\alexander" `
+    --step "focus:password" --step "type:throwaway" `
+    --step "shot:as-dots" `
+    --step "peek"
+```
+
+`CredUiSmoke.exe --help` lists the verbs. In short: `shot[:TAG]`, `wait:MS`, `focus:WHERE`
+(`user`, `password`, or any fragment of an element's name), `type:TEXT`, `secret:VARIABLE`,
+`clear`, `key:NAME`, `click:NAME`, `peek[:MS]`, `dump`, `surface`, `ok`, `cancel`.
+
+A script that runs out without `ok` or `cancel` gets a Cancel anyway: leaving a modal dialog up
+with nobody to dismiss it is not an option. A step that cannot find what it is aimed at abandons
+the run rather than carrying on — the next `type` would otherwise send a password to whatever
+happened to hold focus.
+
+`click` tries UI Automation's `Invoke`, then `Select`, then `Expand`, and falls back to a real
+pointer click for the controls that expose none of them; the "Remember me" checkbox is one.
+Pointer coordinates are measured DPI-aware for the same reason captures are, and the cursor is put
+back where it was found afterwards.
+
+`peek` is press-and-hold rather than click, because that is what the glyph is: the password is
+legible for exactly as long as the button is down, so the capture happens mid-hold. The button is
+released from a `finally` — a stuck left button would make the desktop unusable for whoever owns
+it, which is far worse than a missed screenshot. Note that the reveal is a visual state UI
+Automation does not track: `TogglePattern` reports `Off` throughout, while the pixels plainly show
+the password. That gap is the whole argument for this harness existing.
 
 ## End to end, through the real cmdlet
 
