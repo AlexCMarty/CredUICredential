@@ -40,6 +40,11 @@ credential dialog you already see for things like UAC elevation and RDP logins. 
 instead of a terminal prompt, you get the platform's UX for free:
 
 - The password field has a built-in "peek" icon so the user can reveal what they typed before submitting.
+  The dialog is seeded with the Kerberos authentication package, so the **More choices** tiles for
+  PIN and smart card are not offered - those are not reusable passwords. As a backstop, anything
+  that comes back tagged as something other than a username-and-password logon is rejected rather
+  than returned as a `PSCredential`; with `-RetryNormalUser` / `-RetryAdminUser` that rejection
+  consumes an attempt and shows the dialog again.
 - It's a native window, so it pops to the front whether the calling script is running interactively or in the background.
 - It automatically matches the user's OS theme (light, dark, high contrast), because it's rendered by Windows itself.
 

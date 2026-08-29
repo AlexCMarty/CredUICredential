@@ -128,6 +128,18 @@ any password over 100 characters. The constants in `Pinvoke/CREDUI.cs` are Windo
 ceilings from `wincred.h`, not sizes to trust blindly — the retry in `TryReadCredential` is what
 makes it correct.
 
+**`pulAuthPackage` does not tell you what the user picked.** The dialog echoes back whatever you
+seeded it with, so an allow-list over that value is a tautology: the module's own seed reads back as
+"password" no matter which tile was used. It is an easy and convincing thing to build, and it can
+never reject anything. What does discriminate is the leading `DWORD` of the returned buffer, the
+`KERB_LOGON_SUBMIT_TYPE` — a user name and password is `KerbInteractiveLogon` (2).
+`CredentialsDialog.MessageType` reads it through the `ICredUiApi` seam (the scripted stand-in's
+buffer pointer is fake and must never be dereferenced), and the cmdlet rejects anything else. Unpack
+failure will not save you either: `CredUnPackAuthenticationBuffer` returns `TRUE` for a PIN buffer
+and hands back mojibake. Belt and braces, the prompt is seeded with Kerberos
+(`AuthPackages.Kerberos`), which stops PIN and smart card being offered at all while keeping the
+peek glyph that `CREDUIWIN_GENERIC` would remove.
+
 **The authentication buffer is ours and it holds the password in the clear.** It is released from a
 `finally` and zeroed on the way out. Do not move that release onto a success path.
 
