@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 using System.Windows.Automation;
 
@@ -5,7 +6,7 @@ namespace CredUiSmoke;
 
 internal static class Program
 {
-    private const string Usage = """
+    private const string Usage = $"""
         CredUiSmoke - smoke-test harness for CredUIPromptForWindowsCredentials
 
         Commands:
@@ -18,6 +19,11 @@ internal static class Program
                                 CREDUI_SMOKE_PIN, submit, and report what came back.
           shot                  Open the dialog, save a PNG of it, and Cancel. With --more, also
                                 a PNG of the "More choices" tiles. Unattended.
+          cmdlet                Photograph the dialog the REAL cmdlet raises. Starts a PowerShell
+                                that imports the module and calls Get-CredUICredential with
+                                --args, drives it with --step, captures, cancels, and reports what
+                                the cmdlet produced. This is the one that makes claims about what
+                                a script would see. Unattended.
           submit                Open the dialog and wait for a HUMAN to submit it, then report.
                                 Cancels itself at --timeout so it can never block forever.
           drive --label TEXT    Drive a dialog raised by ANOTHER process - the PowerShell session
@@ -28,6 +34,7 @@ internal static class Program
         Options:
           --flags 0x12          dwFlags for the prompt. Default 0x12
                                 (CREDUIWIN_AUTHPACKAGE_ONLY | CREDUIWIN_CHECKBOX), what the module uses.
+                                Ignored by `cmdlet`, which lets the cmdlet choose its own.
           --in-package NAME|N   Seed pulAuthPackage on the way in. Name is looked up via LSA.
                                 Default 0, which is what the module passes.
           --user NAME           Seed the user name through CredPackAuthenticationBuffer.
@@ -41,18 +48,32 @@ internal static class Program
                                 Windows Hello's failure counter, so nothing is guessed.
           --dump                Dump the full UI Automation tree in commands that do not by default.
           --shot                Save a PNG of the dialog at each interesting moment. Implied by
-                                `shot`. Only the dialog's own rectangle is captured.
+                                `shot` and by `cmdlet`. Only the dialog's own rectangle is captured.
           --shot-screen         --shot, but capture the whole desktop instead of just the dialog.
                                 Everything else on screen ends up in the file; use deliberately.
           --shot-dir PATH       Where the PNGs go. Default %TEMP%\CredUiSmoke\<timestamp>-<pid>.
           --label TEXT          Message text on the dialog; also how the harness finds its window.
+                                For `cmdlet` it defaults to the cmdlet's own default message, so a
+                                bare call is found without passing anything.
+          --args "..."          cmdlet: parameters for Get-CredUICredential, passed through
+                                verbatim, e.g. --args "-UserName johndoe -ShowSaveCheckbox".
+                                Omit for a bare call.
+          --module PATH         cmdlet: the module manifest to import. Defaults to the
+                                CredUICredential.psd1 found above the harness.
+          --step VERB[:ARG]     What to do to the dialog before, between and after captures.
+                                Repeatable; the steps run in the order given.
+
+        Steps (--step):
+        {Steps.Help}
 
         Secrets are read from the environment and never printed. Only the length and the
-        character-class histogram of a decoded password are reported. A screenshot is of the
-        dialog only, and the dialog never shows a typed password or PIN as anything but dots.
+        character-class histogram of a decoded password are reported, and a step that types is
+        logged by length rather than by content. A screenshot is of the dialog only, and the
+        dialog shows a typed password as dots - unless a `peek` step is asked for, which holds the
+        reveal glyph down precisely so that the capture shows it in the clear.
 
         Exit codes: 0 ok, 1 bad usage, 2 dialog never appeared, 3 cancelled on timeout,
-                    4 watchdog had to kill the process, 5 the prompt failed.
+                    4 watchdog had to kill the process, 5 the prompt or a step failed.
         """;
 
     private static int Main(string[] args)
@@ -71,7 +92,8 @@ internal static class Program
             return 1;
         }
 
-        Screenshot.Enabled = options.Shot || options.Command == "shot";
+        // `shot` and `cmdlet` exist to produce pictures, so neither needs asking twice.
+        Screenshot.Enabled = options.Shot || options.Command is "shot" or "cmdlet";
         Screenshot.FullScreen = options.ShotScreen;
         Screenshot.DirectoryOverride = options.ShotDir;
         if (Screenshot.Enabled)
@@ -97,6 +119,7 @@ internal static class Program
             "auto" => Auto(options, packageMap),
             "pin" => Pin(options, packageMap),
             "shot" => Shot(options, packageMap),
+            "cmdlet" => Cmdlet(options),
             "submit" => Submit(options, packageMap),
             "drive" => Drive(options),
             _ => Unknown(options.Command),
@@ -428,6 +451,12 @@ internal static class Program
             }
         }
 
+        if (options.Steps.Count > 0 && Steps.Run(dialog, options.Steps) == StepOutcome.Submitted)
+        {
+            ClickOk(dialog);
+            return Finish(runner, dialog, options, packageMap);
+        }
+
         if (options.Dump)
         {
             Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
@@ -438,6 +467,116 @@ internal static class Program
         Console.WriteLine(closed ? runner.DescribeOutcome(packageMap) : "The prompt did not return after Cancel.");
         runner.FreeOutputBuffer();
         return closed ? 0 : 3;
+    }
+
+    /// <summary>
+    ///     The real cmdlet, photographed. Everything else here calls credui directly, which is
+    ///     useful for exploring the API and useless as evidence: those commands can raise dialogs
+    ///     the module would never raise, so a picture taken that way shows what Windows can draw,
+    ///     not what a script gets. This starts a PowerShell, imports the module, calls
+    ///     <c>Get-CredUICredential</c> with whatever parameters were asked for, and photographs
+    ///     the result - so the flags, the auth-package seed and the message all come from the
+    ///     shipping path rather than from this harness.
+    /// </summary>
+    private static int Cmdlet(Options options)
+    {
+        var manifest = options.Module ?? FindManifest();
+        if (!File.Exists(manifest))
+        {
+            Console.Error.WriteLine($"No module manifest at '{manifest}'. Pass --module PATH.");
+            return 1;
+        }
+
+        // The window is found by its message text, so a -Message the harness does not know about
+        // is a dialog it cannot find. Say so now rather than time out looking for the wrong text.
+        if (options.Args.Contains("-Message", StringComparison.OrdinalIgnoreCase) && !options.LabelWasGiven)
+        {
+            Console.Error.WriteLine(
+                "--args passes -Message, so the dialog will not say the cmdlet's default and cannot be " +
+                "found by it. Pass --label with the same text.");
+            return 1;
+        }
+
+        // Taken before the child starts, so a dialog stranded by an earlier run cannot be mistaken
+        // for this one. That matters most for a bare call, where the message is the cmdlet's own
+        // default and every such dialog on the desktop looks identical.
+        var alreadyOpen = Ui.CredentialWindowHandles();
+
+        var runner = new CmdletRunner { ManifestPath = manifest, Arguments = options.Args };
+        Console.WriteLine($"module={manifest}");
+        Console.WriteLine($"Get-CredUICredential {(options.Args.Length == 0 ? "<no parameters>" : options.Args)}");
+        Console.WriteLine($"waiting up to {options.Timeout.TotalSeconds:0}s for a dialog showing '{options.Label}' ...");
+        runner.Start();
+        Console.WriteLine($"child PowerShell pid={runner.ProcessId}");
+
+        var dialog = Ui.WaitForForeignDialog(options.Label, options.Timeout, alreadyOpen);
+        if (dialog is null)
+        {
+            Console.Error.WriteLine($"No new credential dialog showing '{options.Label}' turned up.");
+            runner.Kill();
+            Console.WriteLine(runner.ReadReport());
+            return 2;
+        }
+
+        // Let the credential provider finish drawing, and put it in front. SendInput goes to the
+        // foreground window, so typing at a dialog that is not in front types at something else.
+        Thread.Sleep(900);
+        Focus(dialog);
+        Thread.Sleep(200);
+        Screenshot.Capture(dialog, "opened");
+
+        if (options.Dump)
+        {
+            Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
+        }
+
+        var outcome = options.Steps.Count == 0
+            ? StepOutcome.Finished
+            : Steps.Run(dialog, options.Steps);
+
+        if (outcome == StepOutcome.Submitted)
+        {
+            ClickOk(dialog);
+        }
+        else
+        {
+            // Anything else, including a script that simply ran out, leaves a modal dialog nobody
+            // is there to dismiss. Cancel is the only responsible default.
+            Console.WriteLine(Ui.Cancel(dialog));
+        }
+
+        if (!runner.Wait(TimeSpan.FromSeconds(20)))
+        {
+            Console.Error.WriteLine("The cmdlet has not returned; killing the child PowerShell.");
+            runner.Kill();
+            Console.WriteLine(runner.ReadReport());
+            return 3;
+        }
+
+        Console.WriteLine("=== cmdlet result ===");
+        Console.WriteLine(runner.ReadReport());
+        return outcome == StepOutcome.Failed ? 5 : 0;
+    }
+
+    /// <summary>
+    ///     The manifest above the harness, found by walking up rather than by counting directories,
+    ///     so it survives a change of target framework or configuration in the output path.
+    /// </summary>
+    private static string FindManifest()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            var candidate = Path.Combine(directory.FullName, "CredUICredential.psd1");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return "CredUICredential.psd1";
     }
 
     /// <summary>
@@ -504,6 +643,21 @@ internal static class Program
         Screenshot.Capture(dialog, "foreign-dialog");
         Console.WriteLine($"--- dialog showing '{options.Label}' (window owned by pid {dialog.Current.ProcessId}) ---");
         Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
+
+        // A step script says exactly what to do to somebody else's dialog, so it replaces the
+        // built-in "type the password and click OK" rather than running before it.
+        if (options.Steps.Count > 0)
+        {
+            var outcome = Steps.Run(dialog, options.Steps);
+            if (outcome == StepOutcome.Submitted)
+            {
+                ClickOk(dialog);
+                return 0;
+            }
+
+            Console.WriteLine(Ui.Cancel(dialog));
+            return outcome == StepOutcome.Failed ? 5 : 0;
+        }
 
         if (options.Cancel)
         {
@@ -699,20 +853,7 @@ internal static class Program
             return;
         }
 
-        // The peek glyph is an unnamed button sitting inside the password box's own rectangle;
-        // there is no stable AutomationId for it, so geometry is what identifies it.
-        var box = passwordField.Current.BoundingRectangle;
-        var candidates = Ui.Descendants(dialog)
-            .Where(e => e.Current.ControlType == ControlType.Button)
-            .Where(e =>
-            {
-                var rect = e.Current.BoundingRectangle;
-                return !rect.IsEmpty && !box.IsEmpty
-                       && rect.Top >= box.Top - 4 && rect.Bottom <= box.Bottom + 4
-                       && rect.Left >= box.Left && rect.Right <= box.Right + 4;
-            })
-            .ToArray();
-
+        var candidates = Ui.PeekCandidates(dialog);
         Console.WriteLine($"peek-glyph candidates inside the password box: {candidates.Length}");
         foreach (var candidate in candidates)
         {
@@ -794,6 +935,17 @@ internal static class Program
         internal bool NoSubmit { get; private set; }
         internal bool Cancel { get; private set; }
         internal int Pid { get; private set; }
+        internal string Args { get; private set; } = string.Empty;
+        internal string? Module { get; private set; }
+        internal IReadOnlyList<Step> Steps { get; private set; } = Array.Empty<Step>();
+
+        /// <summary>
+        ///     Whether --label was passed. `cmdlet` needs to tell "the caller wants the default
+        ///     message" from "the caller named the message", because only the second is compatible
+        ///     with a -Message in --args.
+        /// </summary>
+        internal bool LabelWasGiven { get; private set; }
+
         // Unique per run: the harness finds its own window by this text, and a credential dialog
         // stranded by an earlier probe is otherwise indistinguishable from ours.
         internal string Label { get; private set; } = $"CredUiSmoke probe {Environment.ProcessId}";
@@ -803,7 +955,15 @@ internal static class Program
             error = null;
             var options = new Options { Command = args[0] };
             string? pendingPackageName = null;
+            var stepScript = new List<string>();
             var timeoutSeconds = options.Command == "submit" ? 300 : 45;
+
+            if (options.Command == "cmdlet")
+            {
+                // The cmdlet chooses the message when the caller does not, so that is the text its
+                // window will be carrying.
+                options.Label = CmdletRunner.DefaultMessage;
+            }
 
             for (var i = 1; i < args.Length; i++)
             {
@@ -881,6 +1041,16 @@ internal static class Program
                             break;
                         case "--label":
                             options.Label = Next();
+                            options.LabelWasGiven = true;
+                            break;
+                        case "--args":
+                            options.Args = Next();
+                            break;
+                        case "--module":
+                            options.Module = Next();
+                            break;
+                        case "--step":
+                            stepScript.Add(Next());
                             break;
                         default:
                             error = $"Unknown option '{argument}'.";
@@ -907,6 +1077,14 @@ internal static class Program
                 options.InPackage = match.Key;
             }
 
+            var steps = CredUiSmoke.Steps.Parse(stepScript, out var stepError);
+            if (steps is null)
+            {
+                error = stepError;
+                return null;
+            }
+
+            options.Steps = steps;
             options.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
             return options;
         }
