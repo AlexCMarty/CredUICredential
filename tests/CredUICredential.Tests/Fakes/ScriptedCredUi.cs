@@ -116,6 +116,9 @@ namespace CredUICredential.Tests.Fakes
         /// <summary>When set, the buffer is reported as too small to hold the tag.</summary>
         public bool MessageTypeUnreadable { get; set; }
 
+        /// <summary>Every value the module seeded <c>pulAuthPackage</c> with, in order.</summary>
+        public List<uint> SeededAuthPackages { get; } = new();
+
         internal readonly record struct Capacities(int UserName, int Domain, int Password);
 
         public CREDUI.ReturnCodes PromptForWindowsCredentials(
@@ -131,6 +134,7 @@ namespace CredUICredential.Tests.Fakes
         {
             PromptCount++;
             RequestedAuthErrors.Add(authError);
+            SeededAuthPackages.Add(authPackage);
             RequestedInfo = info;
             RequestedInAuthBuffer = inAuthBuffer;
             RequestedInAuthBufferSize = inAuthBufferSize;

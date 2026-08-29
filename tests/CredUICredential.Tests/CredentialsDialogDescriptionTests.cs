@@ -208,5 +208,17 @@ namespace CredUICredential.Tests
 
             Assert.Equal(KERB.InteractiveLogon, dialog.MessageType);
         }
+
+        [Fact]
+        public void TheDialogSeedsKerberosAsTheInputAuthPackage()
+        {
+            // Seeding Kerberos is what keeps the PIN and smart-card tiles off "More choices"
+            // while leaving the password provider - and its peek glyph - in place.
+            var api = new ScriptedCredUi();
+
+            new CredentialsDialog(api).Show();
+
+            Assert.Equal(AuthPackages.Kerberos, Assert.Single(api.SeededAuthPackages));
+        }
     }
 }

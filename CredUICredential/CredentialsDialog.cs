@@ -271,7 +271,9 @@ namespace CredUICredential
         ///     <c>CREDUIWIN_AUTHPACKAGE_ONLY</c> selects the password credential provider, which
         ///     is the one whose password box has the peek glyph. <c>CREDUIWIN_GENERIC</c> hides
         ///     "More choices" but takes peek away with it - the trade this module used to make.
-        ///     "More choices" is back, so the cmdlet checks the submit type of what comes back.
+        ///     Seeding Kerberos instead (see <see cref="AuthPackages.Kerberos"/>) keeps peek and
+        ///     stops PIN and smart card being offered at all, and the cmdlet still checks the
+        ///     submit type of whatever does come back.
         /// </remarks>
         private static CREDUI.FLAGS GetFlags(bool showSaveCheckbox)
         {
@@ -413,8 +415,9 @@ namespace CredUICredential
         {
             // set the API call parameters
             var info = GetInfo(owner);
-            // make the API call
-            uint authPackage = 0;
+            // make the API call. Seeding Kerberos keeps the PIN and smart-card tiles off
+            // "More choices"; the password provider, and its peek glyph, stay.
+            uint authPackage = AuthPackages.Kerberos;
             var flags = GetFlags(showSaveCheckbox);
 
             var inAuthBuffer = IntPtr.Zero;
