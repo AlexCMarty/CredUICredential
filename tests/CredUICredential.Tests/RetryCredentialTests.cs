@@ -302,5 +302,43 @@ namespace CredUICredential.Tests
             Assert.Single(errors);
             Assert.Equal(0, ScriptedDialogCmdlet.LogonApiCreations);
         }
+
+        [Fact]
+        public void RetryNormalUserTreatsANonPasswordCredentialLikeAFailedAttempt()
+        {
+            var api = new ScriptedCredUi
+            {
+                UserName = "alice",
+                PasswordsByAttempt = { "garbage", "hunter2" },
+                MessageTypesByAttempt = { KERB.SmartCardLogon, KERB.InteractiveLogon }
+            };
+            var logon = new ScriptedLogon(
+                LogonResult.Succeeded(isLocalAdministrator: false));
+            using var host = new ScriptedDialogHost(api, logon);
+
+            var output = host.Run("Get-CredUICredential -RetryNormalUser", out var errors);
+
+            Assert.Empty(errors);
+            Assert.Equal("hunter2", Reveal(Assert.IsType<PSCredential>(Assert.Single(output).BaseObject)));
+            Assert.Equal(2, api.PromptCount);
+            Assert.Equal(new[] { 0, ADVAPI.ERROR_LOGON_FAILURE }, api.RequestedAuthErrors);
+            Assert.Equal(1, logon.AttemptCount);
+        }
+
+        [Fact]
+        public void RetryNormalUserWritesAnErrorWhenEveryAttemptIsNonPassword()
+        {
+            var api = new ScriptedCredUi { MessageType = KERB.SmartCardLogon };
+            var logon = new ScriptedLogon();
+            using var host = new ScriptedDialogHost(api, logon);
+
+            var output = host.Run("Get-CredUICredential -RetryNormalUser -MaxAttempts 2", out var errors);
+
+            Assert.Empty(output);
+            Assert.Equal(2, api.PromptCount);
+            Assert.Equal(0, logon.AttemptCount);
+            var error = Assert.Single(errors);
+            Assert.Contains("CredentialNotPassword", error.FullyQualifiedErrorId);
+        }
     }
 }

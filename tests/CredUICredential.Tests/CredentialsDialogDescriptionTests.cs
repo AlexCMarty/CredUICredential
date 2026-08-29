@@ -103,16 +103,15 @@ namespace CredUICredential.Tests
         }
 
         [Fact]
-        public void TheDialogRequestsPlaintextUsernameAndPasswordOnly()
+        public void TheDialogRequestsThePasswordProviderUi()
         {
-            // CREDUIWIN_GENERIC tells providers to return a username and password in plain text.
-            // Without it, Windows also offers PIN / smart-card choices whose buffers are not a
-            // reusable password — exactly what a Get-Credential replacement must not accept.
+            // CREDUIWIN_AUTHPACKAGE_ONLY is the password-provider surface (including peek).
+            // PIN / smart-card "More choices" may still appear; the cmdlet rejects those after OK.
             var api = new RealBufferCredUi();
 
             new CredentialsDialog(api).Show();
 
-            Assert.Equal(CREDUI.FLAGS.CREDUIWIN_GENERIC, api.RequestedFlags);
+            Assert.Equal(CREDUI.FLAGS.CREDUIWIN_AUTHPACKAGE_ONLY, api.RequestedFlags);
         }
 
         [Fact]
@@ -123,7 +122,7 @@ namespace CredUICredential.Tests
             new CredentialsDialog(api).Show(showSaveCheckbox: true);
 
             Assert.Equal(
-                CREDUI.FLAGS.CREDUIWIN_GENERIC | CREDUI.FLAGS.CREDUIWIN_CHECKBOX,
+                CREDUI.FLAGS.CREDUIWIN_AUTHPACKAGE_ONLY | CREDUI.FLAGS.CREDUIWIN_CHECKBOX,
                 api.RequestedFlags);
         }
 

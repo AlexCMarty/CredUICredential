@@ -141,6 +141,12 @@ namespace CredUICredential
                 var dialogResult = dialog.Show(UserName, ShowSaveCheckbox.IsPresent);
                 if (dialogResult == DialogResult.OK)
                 {
+                    if (dialog.MessageType != KERB.InteractiveLogon)
+                    {
+                        WriteNonPasswordError(dialog.UserName);
+                        return;
+                    }
+
                     WriteCredential(dialog);
                 }
             }
@@ -194,6 +200,19 @@ namespace CredUICredential
                 }
 
                 attempts++;
+                if (dialog.MessageType != KERB.InteractiveLogon)
+                {
+                    if (attempts >= MaxAttempts)
+                    {
+                        WriteNonPasswordError(dialog.UserName);
+                        return;
+                    }
+
+                    authError = ADVAPI.ERROR_LOGON_FAILURE;
+                    username = dialog.UserName;
+                    continue;
+                }
+
                 var result = logon.TryLogon(dialog.UserName, dialog.Password);
 
                 if (result.Status == LogonStatus.Success)
@@ -242,6 +261,16 @@ namespace CredUICredential
                 authError = ADVAPI.ERROR_LOGON_FAILURE;
                 username = dialog.UserName;
             }
+        }
+
+        private void WriteNonPasswordError(string userName)
+        {
+            WriteError(new ErrorRecord(
+                new InvalidOperationException(
+                    "The credential dialog returned a credential that is not a username and password."),
+                "CredentialNotPassword",
+                ErrorCategory.InvalidData,
+                targetObject: userName));
         }
 
         private void WriteCredential(CredentialsDialog dialog)

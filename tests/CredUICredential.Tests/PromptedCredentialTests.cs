@@ -125,6 +125,34 @@ namespace CredUICredential.Tests
         }
 
         [Fact]
+        public void ANonPasswordCredentialBecomesAnErrorRecordRatherThanACredential()
+        {
+            // A smart-card submit through "More choices": credui packs it, and unpack even
+            // succeeds, but what comes back is not a reusable password.
+            var api = new ScriptedCredUi { MessageType = KERB.SmartCardLogon, UserName = "alice", Password = "garbage" };
+            using var host = new ScriptedDialogHost(api);
+
+            var output = host.Run("Get-CredUICredential -Message 'go on then'", out var errors);
+
+            Assert.Empty(output);
+            var error = Assert.Single(errors);
+            Assert.Contains("CredentialNotPassword", error.FullyQualifiedErrorId);
+            Assert.Equal(ErrorCategory.InvalidData, error.CategoryInfo.Category);
+        }
+
+        [Fact]
+        public void AnInteractiveLogonStillReturnsTheCredential()
+        {
+            var api = new ScriptedCredUi { MessageType = KERB.InteractiveLogon, UserName = "alice", Password = "hunter2" };
+            using var host = new ScriptedDialogHost(api);
+
+            var output = host.Run("Get-CredUICredential -Message 'go on then'", out var errors);
+
+            Assert.Empty(errors);
+            Assert.Equal("hunter2", Reveal(Assert.IsType<PSCredential>(Assert.Single(output).BaseObject)));
+        }
+
+        [Fact]
         public void TitleAndMessageReachTheDialog()
         {
             var api = new ScriptedCredUi();

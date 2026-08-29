@@ -14,6 +14,8 @@ namespace CredUICredential.Tests.Fakes
 
         public List<(string UserName, int PasswordLength)> Calls { get; } = new();
 
+        public int AttemptCount => Calls.Count;
+
         public ScriptedLogon(params LogonResult[] results)
         {
             foreach (var result in results)

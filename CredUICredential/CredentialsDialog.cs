@@ -268,14 +268,14 @@ namespace CredUICredential
         /// </summary>
         /// <param name="showSaveCheckbox"> Whether to include the Save check box in the dialog. </param>
         /// <remarks>
-        ///     <c>CREDUIWIN_GENERIC</c> asks providers for a username and password in plain text.
-        ///     Other flags (notably <c>CREDUIWIN_AUTHPACKAGE_ONLY</c>) also surface PIN and smart-card
-        ///     choices whose packed buffers are not a reusable password, which this module cannot
-        ///     usefully return as a <c>PSCredential</c>.
+        ///     <c>CREDUIWIN_AUTHPACKAGE_ONLY</c> selects the password credential provider, which
+        ///     is the one whose password box has the peek glyph. <c>CREDUIWIN_GENERIC</c> hides
+        ///     "More choices" but takes peek away with it - the trade this module used to make.
+        ///     "More choices" is back, so the cmdlet checks the submit type of what comes back.
         /// </remarks>
         private static CREDUI.FLAGS GetFlags(bool showSaveCheckbox)
         {
-            var flags = CREDUI.FLAGS.CREDUIWIN_GENERIC;
+            var flags = CREDUI.FLAGS.CREDUIWIN_AUTHPACKAGE_ONLY;
             if (showSaveCheckbox)
             {
                 flags |= CREDUI.FLAGS.CREDUIWIN_CHECKBOX;
