@@ -85,6 +85,7 @@ then `Publish-PSResource`. CI does the same on `v*` tags after the tag (minus `v
 | `publish.ps1` | Stages, then publishes; uses `PSGALLERY_API_KEY` or `.apikey` |
 | `.github/workflows/ci.yml` | Windows test (x64 and x86), package, tag publish |
 | `tests/CredUICredential.Tests/` | xunit suite |
+| `tools/CredUiSmoke/` | Drives the *real* dialog with nobody at the keyboard; outside the solution, so CI never builds it |
 
 ## Testing a modal dialog
 
@@ -118,6 +119,13 @@ are all genuine.
 `PowerShellHost.Run` and `ScriptedDialogHost.Run` wrap every invocation in `NoDialog.Expected`. A
 regression that starts prompting on a path that should not would otherwise hang the entire test run
 on a dialog nobody is there to dismiss. Keep new runspace helpers behind it.
+
+### What the fakes cannot tell you
+
+Both stand-ins replace the native prompt, so no test in the suite ever sees the credential provider
+UI — which is exactly where the peek glyph and the "More choices" tiles live. `tools/CredUiSmoke/`
+drives the real dialog through UI Automation, with nobody at the keyboard, and is how claims about
+that surface get checked. It is outside `CredUICredential.sln` on purpose; see its README.
 
 ## Things that will bite you
 
