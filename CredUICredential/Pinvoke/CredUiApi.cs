@@ -111,6 +111,18 @@ namespace CredUICredential.Pinvoke
             return true;
         }
 
+        public bool TryReadMessageType(IntPtr authBuffer, uint authBufferSize, out uint messageType)
+        {
+            messageType = 0;
+            if (authBuffer == IntPtr.Zero || authBufferSize < sizeof(uint))
+            {
+                return false;
+            }
+
+            messageType = unchecked((uint)Marshal.ReadInt32(authBuffer));
+            return true;
+        }
+
         /// <summary>
         ///     Overwrites <paramref name="size"/> bytes at <paramref name="buffer"/> with zeroes.
         /// </summary>

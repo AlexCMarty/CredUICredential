@@ -172,5 +172,42 @@ namespace CredUICredential.Tests
 
             Assert.Equal(System.Runtime.InteropServices.Marshal.SizeOf<CREDUI.INFO>(), info.cbSize);
         }
+
+        [Fact]
+        public void TheMessageTypeIsTheTagFromTheBufferTheDialogReturned()
+        {
+            var api = new ScriptedCredUi { MessageType = KERB.SmartCardLogon };
+            var dialog = new CredentialsDialog(api);
+
+            dialog.Show();
+
+            Assert.Equal(KERB.SmartCardLogon, dialog.MessageType);
+        }
+
+        [Fact]
+        public void TheMessageTypeIsZeroWhenTheBufferIsTooSmallToHoldTheTag()
+        {
+            // Zero is not a valid KERB_LOGON_SUBMIT_TYPE, so an unreadable buffer reads as
+            // "not a password" rather than silently passing the cmdlet's check.
+            var api = new ScriptedCredUi { MessageTypeUnreadable = true };
+            var dialog = new CredentialsDialog(api);
+
+            dialog.Show();
+
+            Assert.Equal(0u, dialog.MessageType);
+        }
+
+        [Fact]
+        public void ABufferWindowsPackedFromAPasswordIsAnInteractiveLogon()
+        {
+            // The real contract, against the real credui.dll: a username-and-password buffer is
+            // tagged KerbInteractiveLogon. This is what the cmdlet's check leans on.
+            var api = new RealBufferCredUi();
+            var dialog = new CredentialsDialog(api);
+
+            dialog.Show();
+
+            Assert.Equal(KERB.InteractiveLogon, dialog.MessageType);
+        }
     }
 }

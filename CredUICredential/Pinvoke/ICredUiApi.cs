@@ -96,5 +96,15 @@ namespace CredUICredential.Pinvoke
             out IntPtr authBuffer,
             out uint authBufferSize,
             out int lastError);
+
+        /// <summary>
+        ///     Reads the leading <c>KERB_LOGON_SUBMIT_TYPE</c> tag from a buffer produced by
+        ///     <see cref="PromptForWindowsCredentials"/>, which says what kind of credential the
+        ///     buffer actually holds - a password, a smart card, or something else entirely.
+        /// </summary>
+        /// <returns>
+        ///     <see langword="true"/> if the buffer was big enough to hold the tag.
+        /// </returns>
+        bool TryReadMessageType(IntPtr authBuffer, uint authBufferSize, out uint messageType);
     }
 }

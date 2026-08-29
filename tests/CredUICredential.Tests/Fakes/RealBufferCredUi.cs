@@ -104,6 +104,9 @@ namespace CredUICredential.Tests.Fakes
             out int lastError)
             => _real.TryPackAuthenticationBuffer(userName, out authBuffer, out authBufferSize, out lastError);
 
+        public bool TryReadMessageType(IntPtr authBuffer, uint authBufferSize, out uint messageType)
+            => _real.TryReadMessageType(authBuffer, authBufferSize, out messageType);
+
         /// <summary>
         ///     Decodes the input buffer the module passed in, using the real
         ///     <c>CredUnPackAuthenticationBuffer</c> with the unprotected flags that match how

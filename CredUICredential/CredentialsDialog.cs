@@ -40,6 +40,16 @@ namespace CredUICredential
         public bool SaveChecked => _saveChecked;
 
         /// <summary>
+        ///     The <c>KERB_LOGON_SUBMIT_TYPE</c> tag of the credential the prompt returned.
+        /// </summary>
+        /// <remarks>
+        ///     Meaningful after <see cref="Show"/> returns <see cref="DialogResult.OK"/>. Stays
+        ///     <c>0</c> - which is not a valid submit type - on cancel, on failure, and when the
+        ///     buffer was too small to hold the tag.
+        /// </remarks>
+        public uint MessageType { get; private set; }
+
+        /// <summary>
         ///     Gets or sets the password for the credentials.
         /// </summary>
         public SecureString Password
@@ -434,6 +444,9 @@ namespace CredUICredential
 
                 if (code == CREDUI.ReturnCodes.NO_ERROR)
                 {
+                    MessageType = _api.TryReadMessageType(outCredBuffer, outCredSize, out var messageType)
+                        ? messageType
+                        : 0;
                     bool read;
                     int readError;
                     try

@@ -104,6 +104,18 @@ namespace CredUICredential.Tests.Fakes
         /// </summary>
         public List<bool> SaveCheckedByAttempt { get; } = new();
 
+        /// <summary>
+        ///     The <c>KERB_LOGON_SUBMIT_TYPE</c> tag <see cref="TryReadMessageType"/> reports.
+        ///     Defaults to a password, so tests that do not care get one.
+        /// </summary>
+        public uint MessageType { get; set; } = KERB.InteractiveLogon;
+
+        /// <summary>Per-attempt override of <see cref="MessageType"/> when non-empty.</summary>
+        public List<uint> MessageTypesByAttempt { get; } = new();
+
+        /// <summary>When set, the buffer is reported as too small to hold the tag.</summary>
+        public bool MessageTypeUnreadable { get; set; }
+
         internal readonly record struct Capacities(int UserName, int Domain, int Password);
 
         public CREDUI.ReturnCodes PromptForWindowsCredentials(
@@ -205,6 +217,18 @@ namespace CredUICredential.Tests.Fakes
 
         public void FreeAuthenticationBuffer(IntPtr authBuffer, uint authBufferSize)
             => FreedBuffers.Add(authBuffer);
+
+        public bool TryReadMessageType(IntPtr authBuffer, uint authBufferSize, out uint messageType)
+        {
+            messageType = 0;
+            if (MessageTypeUnreadable)
+            {
+                return false;
+            }
+
+            messageType = At(MessageTypesByAttempt, MessageType);
+            return true;
+        }
 
         public bool TryPackAuthenticationBuffer(
             string userName,
