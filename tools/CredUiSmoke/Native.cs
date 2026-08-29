@@ -111,6 +111,36 @@ internal static class Native
     [DllImport("user32.dll", CallingConvention = CallingConvention.Winapi)]
     internal static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [DllImport("user32.dll", SetLastError = true, CallingConvention = CallingConvention.Winapi)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll", CallingConvention = CallingConvention.Winapi)]
+    internal static extern int GetSystemMetrics(int nIndex);
+
+    internal const int SM_XVIRTUALSCREEN = 76;
+    internal const int SM_YVIRTUALSCREEN = 77;
+    internal const int SM_CXVIRTUALSCREEN = 78;
+    internal const int SM_CYVIRTUALSCREEN = 79;
+
+    /// <summary>
+    ///     Per-thread DPI awareness, so a screen capture on a scaled display measures and blits in
+    ///     real pixels. Per-monitor v2 is -4, passed as a pseudo-handle.
+    /// </summary>
+    internal static readonly IntPtr DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = new(-4);
+
+    [DllImport("user32.dll", CallingConvention = CallingConvention.Winapi)]
+    internal static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
+
     internal const uint WM_CLOSE = 0x0010;
 
     [StructLayout(LayoutKind.Sequential)]

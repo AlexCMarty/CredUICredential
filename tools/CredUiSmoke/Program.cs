@@ -16,6 +16,8 @@ internal static class Program
                                 CREDUI_SMOKE_PASSWORD, submit, and report what came back.
           pin                   Open the dialog, go to "More choices", pick the PIN tile, type
                                 CREDUI_SMOKE_PIN, submit, and report what came back.
+          shot                  Open the dialog, save a PNG of it, and Cancel. With --more, also
+                                a PNG of the "More choices" tiles. Unattended.
           submit                Open the dialog and wait for a HUMAN to submit it, then report.
                                 Cancels itself at --timeout so it can never block forever.
           drive --label TEXT    Drive a dialog raised by ANOTHER process - the PowerShell session
@@ -38,10 +40,16 @@ internal static class Program
           --no-submit           pin: walk to the PIN field and stop. A wrong PIN counts against
                                 Windows Hello's failure counter, so nothing is guessed.
           --dump                Dump the full UI Automation tree in commands that do not by default.
+          --shot                Save a PNG of the dialog at each interesting moment. Implied by
+                                `shot`. Only the dialog's own rectangle is captured.
+          --shot-screen         --shot, but capture the whole desktop instead of just the dialog.
+                                Everything else on screen ends up in the file; use deliberately.
+          --shot-dir PATH       Where the PNGs go. Default %TEMP%\CredUiSmoke\<timestamp>-<pid>.
           --label TEXT          Message text on the dialog; also how the harness finds its window.
 
         Secrets are read from the environment and never printed. Only the length and the
-        character-class histogram of a decoded password are reported.
+        character-class histogram of a decoded password are reported. A screenshot is of the
+        dialog only, and the dialog never shows a typed password or PIN as anything but dots.
 
         Exit codes: 0 ok, 1 bad usage, 2 dialog never appeared, 3 cancelled on timeout,
                     4 watchdog had to kill the process, 5 the prompt failed.
@@ -63,6 +71,14 @@ internal static class Program
             return 1;
         }
 
+        Screenshot.Enabled = options.Shot || options.Command == "shot";
+        Screenshot.FullScreen = options.ShotScreen;
+        Screenshot.DirectoryOverride = options.ShotDir;
+        if (Screenshot.Enabled)
+        {
+            Console.WriteLine($"screenshots: {Screenshot.OutputDirectory}");
+        }
+
         var packageMap = Diagnostics.LookupPackages(out var lsaFailure);
         if (lsaFailure is not null)
         {
@@ -80,6 +96,7 @@ internal static class Program
             "enumerate" => Enumerate(options, packageMap),
             "auto" => Auto(options, packageMap),
             "pin" => Pin(options, packageMap),
+            "shot" => Shot(options, packageMap),
             "submit" => Submit(options, packageMap),
             "drive" => Drive(options),
             _ => Unknown(options.Command),
@@ -168,6 +185,8 @@ internal static class Program
         }
 
         Thread.Sleep(600);
+        Focus(dialog);
+        Screenshot.Capture(dialog, "initial");
         Console.WriteLine("--- initial tree ---");
         Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
 
@@ -186,6 +205,7 @@ internal static class Program
                     Ui.TypeText("probe");
                     Thread.Sleep(500);
                     Console.WriteLine("--- password surface after typing 5 throwaway characters ---");
+                    Screenshot.Capture(dialog, "password-typed");
                     ReportPasswordSurface(dialog);
                     Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
                 }
@@ -209,6 +229,7 @@ internal static class Program
                 }
 
                 Thread.Sleep(900);
+                Screenshot.Capture(dialog, "more-choices");
                 Console.WriteLine("--- tree after More choices ---");
                 Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
                 Console.WriteLine("--- credential provider tiles ---");
@@ -268,6 +289,7 @@ internal static class Program
                 Console.WriteLine($"Typed password ({password.Length} characters, not shown).");
                 Thread.Sleep(300);
                 Console.WriteLine("--- password surface with the password typed ---");
+                Screenshot.Capture(dialog, "filled");
                 ReportPasswordSurface(dialog);
                 return ClickOk(dialog);
             });
@@ -324,6 +346,7 @@ internal static class Program
 
                 Thread.Sleep(1200);
 
+                Screenshot.Capture(dialog, "pin-tile");
                 Console.WriteLine("--- tree on the PIN tile ---");
                 Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
 
@@ -348,6 +371,76 @@ internal static class Program
     }
 
     /// <summary>
+    ///     A picture of the dialog, and nothing else. The automation tree describes the elements
+    ///     credui exposes; only a capture shows what was actually drawn, which is where the peek
+    ///     glyph and the provider tiles live. Nobody has to be at the keyboard: the prompt is
+    ///     cancelled as soon as the PNGs are on disk.
+    /// </summary>
+    private static int Shot(Options options, Dictionary<uint, List<string>> packageMap)
+    {
+        var runner = NewRunner(options);
+        Console.WriteLine(Header(options));
+        runner.Start();
+
+        var dialog = Ui.WaitForDialog(Environment.ProcessId, options.Label, TimeSpan.FromSeconds(25));
+        if (dialog is null)
+        {
+            return NotFound(runner, packageMap);
+        }
+
+        // Let the credential provider finish drawing itself, and put it in front: a capture of a
+        // half-painted or occluded dialog is worse than none.
+        Thread.Sleep(900);
+        Focus(dialog);
+        Thread.Sleep(200);
+        Screenshot.Capture(dialog, "dialog");
+
+        if (options.TypeProbe)
+        {
+            // The peek glyph is only templated once the password box has something to reveal, so
+            // an empty box is not a picture of the peek affordance.
+            var field = Ui.FindPasswordField(dialog);
+            if (field is not null && Ui.Focus(field))
+            {
+                Ui.TypeText("probe");
+                Thread.Sleep(500);
+                Screenshot.Capture(dialog, "password-typed");
+            }
+        }
+
+        if (options.More)
+        {
+            var more = Ui.FindByNameContains(dialog, "More choices", "More options");
+            if (more is null)
+            {
+                Console.WriteLine("No \"More choices\" affordance is present.");
+            }
+            else
+            {
+                if (!Ui.Invoke(more))
+                {
+                    Ui.Focus(more);
+                    Ui.SendVirtualKey(Native.VK_RETURN);
+                }
+
+                Thread.Sleep(900);
+                Screenshot.Capture(dialog, "more-choices");
+            }
+        }
+
+        if (options.Dump)
+        {
+            Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
+        }
+
+        Console.WriteLine(Ui.Cancel(dialog));
+        var closed = runner.Wait(TimeSpan.FromSeconds(10));
+        Console.WriteLine(closed ? runner.DescribeOutcome(packageMap) : "The prompt did not return after Cancel.");
+        runner.FreeOutputBuffer();
+        return closed ? 0 : 3;
+    }
+
+    /// <summary>
     ///     The one-shot human diagnostic: raise the prompt, let somebody submit it however they
     ///     like, and report what credui handed back. Cancels itself if nobody turns up.
     /// </summary>
@@ -365,9 +458,10 @@ internal static class Program
             return NotFound(runner, packageMap);
         }
 
+        Thread.Sleep(600);
+        Screenshot.Capture(dialog, "waiting-for-human");
         if (options.Dump)
         {
-            Thread.Sleep(600);
             Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
             ReportPasswordSurface(dialog);
         }
@@ -407,6 +501,7 @@ internal static class Program
 
         Thread.Sleep(700);
         Focus(dialog);
+        Screenshot.Capture(dialog, "foreign-dialog");
         Console.WriteLine($"--- dialog showing '{options.Label}' (window owned by pid {dialog.Current.ProcessId}) ---");
         Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
 
@@ -450,6 +545,7 @@ internal static class Program
 
         Ui.TypeText(password);
         Thread.Sleep(300);
+        Screenshot.Capture(dialog, "foreign-filled");
         Console.WriteLine("--- password surface with the password typed ---");
         ReportPasswordSurface(dialog);
         ClickOk(dialog);
@@ -485,6 +581,7 @@ internal static class Program
         {
         }
 
+        Screenshot.Capture(dialog, "opened");
         if (options.Dump)
         {
             Console.WriteLine(Ui.DumpTree(dialog, includeRects: true));
@@ -690,6 +787,9 @@ internal static class Program
         internal TimeSpan Timeout { get; private set; }
         internal bool More { get; private set; }
         internal bool Dump { get; private set; }
+        internal bool Shot { get; private set; }
+        internal bool ShotScreen { get; private set; }
+        internal string? ShotDir { get; private set; }
         internal bool TypeProbe { get; private set; }
         internal bool NoSubmit { get; private set; }
         internal bool Cancel { get; private set; }
@@ -755,6 +855,17 @@ internal static class Program
                             break;
                         case "--dump":
                             options.Dump = true;
+                            break;
+                        case "--shot":
+                            options.Shot = true;
+                            break;
+                        case "--shot-screen":
+                            options.Shot = true;
+                            options.ShotScreen = true;
+                            break;
+                        case "--shot-dir":
+                            options.ShotDir = Next();
+                            options.Shot = true;
                             break;
                         case "--type-probe":
                             options.TypeProbe = true;

@@ -20,6 +20,13 @@
 .PARAMETER Cancel
     Cancel the dialog instead of submitting it, to check the cancel path.
 
+.PARAMETER Screenshot
+    Save PNGs of the dialog the cmdlet raised - the one surface the xunit suite cannot see. Only
+    the dialog's own window is captured, and a typed password shows on it as dots.
+
+.PARAMETER ScreenshotDirectory
+    Where those PNGs go. Defaults to %TEMP%\CredUiSmoke\<timestamp>-<pid>.
+
 .PARAMETER TimeoutSeconds
     Hard ceiling on the whole run. The child process is killed if it overruns, so this script
     cannot hang on a modal dialog.
@@ -33,6 +40,8 @@ param(
     [string] $Repo = (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)),
     [string] $Arguments = '',
     [switch] $Cancel,
+    [switch] $Screenshot,
+    [string] $ScreenshotDirectory,
     [int]    $TimeoutSeconds = 90
 )
 
@@ -88,6 +97,8 @@ Write-Host "Child PowerShell pid=$($child.Id); waiting for a dialog showing '$la
 
 $driveArgs = @('drive', '--label', $label, '--timeout', [Math]::Max(20, $TimeoutSeconds - 30))
 if ($Cancel) { $driveArgs += '--cancel' }
+if ($Screenshot -or $ScreenshotDirectory) { $driveArgs += '--shot' }
+if ($ScreenshotDirectory) { $driveArgs += @('--shot-dir', $ScreenshotDirectory) }
 
 & $harness @driveArgs
 $driveExit = $LASTEXITCODE
