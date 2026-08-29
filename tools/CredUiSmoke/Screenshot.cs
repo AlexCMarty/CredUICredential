@@ -58,9 +58,8 @@ internal static class Screenshot
         }
 
         // Both the measurement and the blit have to run DPI-aware, or a scaled display hands back
-        // virtualized coordinates and the capture is offset and blurry. Per-thread, so nothing
-        // that draws the dialog is disturbed.
-        var previousContext = SetDpiAware();
+        // virtualized coordinates and the capture is offset and blurry.
+        using var dpi = DpiScope.Enter();
         try
         {
             var bounds = FullScreen || dialog is null ? VirtualScreen() : WindowBounds(dialog);
@@ -94,13 +93,6 @@ internal static class Screenshot
         {
             Console.WriteLine($"screenshot ({tag}) failed: {exception.GetType().Name}: {exception.Message}");
             return null;
-        }
-        finally
-        {
-            if (previousContext != IntPtr.Zero)
-            {
-                Native.SetThreadDpiAwarenessContext(previousContext);
-            }
         }
     }
 
@@ -141,18 +133,6 @@ internal static class Screenshot
             Native.GetSystemMetrics(Native.SM_YVIRTUALSCREEN),
             Native.GetSystemMetrics(Native.SM_CXVIRTUALSCREEN),
             Native.GetSystemMetrics(Native.SM_CYVIRTUALSCREEN));
-
-    private static IntPtr SetDpiAware()
-    {
-        try
-        {
-            return Native.SetThreadDpiAwarenessContext(Native.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-        }
-        catch (EntryPointNotFoundException)
-        {
-            return IntPtr.Zero;
-        }
-    }
 
     /// <summary>A grid sample: enough to tell a real dialog from a flat rectangle of nothing.</summary>
     private static bool IsUniform(Bitmap bitmap)

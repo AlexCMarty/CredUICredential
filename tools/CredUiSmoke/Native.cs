@@ -187,13 +187,47 @@ internal static class Native
         public INPUTUNION u;
     }
 
+    internal const uint INPUT_MOUSE = 0;
     internal const uint INPUT_KEYBOARD = 1;
     internal const uint KEYEVENTF_KEYUP = 0x0002;
     internal const uint KEYEVENTF_UNICODE = 0x0004;
-    internal const ushort VK_RETURN = 0x0D;
-    internal const ushort VK_ESCAPE = 0x1B;
+
+    internal const uint MOUSEEVENTF_MOVE = 0x0001;
+    internal const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+    internal const uint MOUSEEVENTF_LEFTUP = 0x0004;
+
+    /// <summary>
+    ///     Absolute mouse coordinates are 0..65535 over the primary monitor, or over the whole
+    ///     virtual desktop when VIRTUALDESK is set as well. A second monitor left of or above the
+    ///     primary one has negative pixel coordinates, so VIRTUALDESK is not optional here.
+    /// </summary>
+    internal const uint MOUSEEVENTF_VIRTUALDESK = 0x4000;
+
+    internal const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
+
+    internal const ushort VK_BACK = 0x08;
     internal const ushort VK_TAB = 0x09;
+    internal const ushort VK_RETURN = 0x0D;
+    internal const ushort VK_SHIFT = 0x10;
+    internal const ushort VK_CONTROL = 0x11;
+    internal const ushort VK_ESCAPE = 0x1B;
+    internal const ushort VK_SPACE = 0x20;
+    internal const ushort VK_END = 0x23;
+    internal const ushort VK_HOME = 0x24;
+    internal const ushort VK_DELETE = 0x2E;
+    internal const ushort VK_A = 0x41;
 
     [DllImport("user32.dll", SetLastError = true, CallingConvention = CallingConvention.Winapi)]
     internal static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct POINT
+    {
+        public int X;
+        public int Y;
+    }
+
+    [DllImport("user32.dll", SetLastError = true, CallingConvention = CallingConvention.Winapi)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetCursorPos(out POINT lpPoint);
 }
