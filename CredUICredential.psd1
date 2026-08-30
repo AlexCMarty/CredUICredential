@@ -30,7 +30,7 @@
     Copyright         = '(c) 2026 Alexander Marty. Based on Get-WinCredential (c) 2022 Zafer Balkan. All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description       = 'Gets a credential object based on a user name and password. It uses Windows native dialogs even on PowerShell 7.x, instead of terminal. A maintained fork of the archived Get-WinCredential module by Zafer Balkan, with a fix for the modern-dialog password decryption bug.'
+    Description       = 'Gets a credential object based on a user name and password. It uses Windows native dialogs on PowerShell 7.x, instead of terminal. A maintained fork of the archived Get-WinCredential module by Zafer Balkan. See https://github.com/AlexCMarty/CredUICredential for more information.'
 
     # Minimum version of the PowerShell engine required by this module.
     # This is a binary module built for .NET 10, so it needs a host running on .NET 10:
