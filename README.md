@@ -11,8 +11,7 @@
 nobody can check. `Get-CredUICredential` raises the real Windows credential dialog instead — the one
 Windows itself uses for RDP logins — and hands back the same `PSCredential`.
 
-**Requires Windows, and PowerShell 7.6 or later** (x64 or x86). It is a binary module built for
-.NET 10, so it needs a host running on .NET 10.
+**Requires Windows, and PowerShell 7.6 or later to install** (x64 or x86).
 
 ## Install
 
