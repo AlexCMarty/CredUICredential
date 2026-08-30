@@ -6,7 +6,7 @@ using CredUICredential.Pinvoke;
 
 namespace CredUICredential
 {
-    [Cmdlet(VerbsCommon.Get, "CredUICredential", DefaultParameterSetName = credentialSet, HelpUri = "https://github.com/AlexCMarty/CredUICredential/blob/master/CredUICredential.md")]
+    [Cmdlet(VerbsCommon.Get, "CredUICredential", DefaultParameterSetName = credentialSet, HelpUri = "https://github.com/AlexCMarty/CredUICredential/blob/main/CredUICredential.md")]
     [OutputType(typeof(PSCredential), ParameterSetName = new string[] { credentialSet, messageSet, retryNormalUserSet, retryAdminUserSet })]
     [OutputType(typeof(PSObject), ParameterSetName = new string[] { messageSet, retryNormalUserSet, retryAdminUserSet })]
     public class GetCredUICredentialCmdlet : PSCmdlet

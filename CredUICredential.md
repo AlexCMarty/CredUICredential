@@ -1,11 +1,11 @@
 ﻿---
 document type: cmdlet
 external help file: CredUICredential.dll-Help.xml
-HelpUri: https://github.com/AlexCMarty/CredUICredential/blob/master/CredUICredential.md
+HelpUri: https://github.com/AlexCMarty/CredUICredential/blob/main/CredUICredential.md
 Locale: en-US
 Module Guid: 7d7d0c54-14b3-4f7d-9c4a-bc8673d62258
 Module Name: CredUICredential
-ms.date: 08/28/2026
+ms.date: 08/29/2026
 PlatyPS schema version: 2024-05-01
 title: Get-CredUICredential
 ---
