@@ -61,7 +61,7 @@
             Tags         = @('windows', 'credential', 'credential-dialog', 'CredUI')
 
             # A URL to the license for this module.
-            LicenseUri   = 'https://github.com/AlexCMarty/CredUICredential/blob/master/LICENSE.txt'
+            LicenseUri   = 'https://github.com/AlexCMarty/CredUICredential/blob/main/LICENSE.txt'
 
             # A URL to the main website for this project.
             ProjectUri   = 'https://github.com/AlexCMarty/CredUICredential'
@@ -74,6 +74,6 @@
     } # End of PrivateData hashtable
 
     # HelpInfo URI of this module
-    HelpInfoURI       = 'https://github.com/AlexCMarty/CredUICredential/blob/master/CredUICredential.md'
+    HelpInfoURI       = 'https://github.com/AlexCMarty/CredUICredential/blob/main/CredUICredential.md'
 
 }
