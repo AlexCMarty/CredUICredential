@@ -10,6 +10,21 @@ feat|bugfix|chore|etc: short
 
 You MUST break your work into logical commits. Do not pile unrelated concerns into a single commit.
 
+Releasing is its own commit & process.
+First, bump version in `CredUICredential.psd1` & `CredUICredential\CredUICredential.csproj`
+Next, commit with the first part like `release: <number>`.
+Also in the commit message include a terse changelog. Each line begins with the type, & is no more than 200 chars. Shorter is better. Readers can see git history for full details.
+Once you have committed, tag with `v<version>`.
+
+Example of good release commit, tagged as `v1.3.1.0`
+```
+release: 1.3.1.0
+
+- bugfix: restored button to peek at password. 427c9f42 removed the "More choices" dialog to prevent PIN / Windows Hello / Smart Card entry, which also removed the button.
+- docs: updated readme with new screenshots, quick start guide & comparision to Get-Credential.
+- feat: added harness & tooling for agents to drive the real Windows API for smoke testing without human intervention. Can specify whatever flags they need, click / type on the dialog, & screenshot for visual inspection.
+```
+
 ## What this is
 
 A PowerShell binary module that exports one cmdlet, `Get-CredUICredential`. It P/Invokes
