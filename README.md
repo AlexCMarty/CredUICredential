@@ -1,97 +1,160 @@
 # CredUICredential
 
+**The modern Windows credential dialog for PowerShell 7 — a drop-in replacement for `Get-Credential`.**
+
 [![CI](https://github.com/AlexCMarty/CredUICredential/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexCMarty/CredUICredential/actions/workflows/ci.yml)
 [![PowerShell Gallery Version](https://img.shields.io/powershellgallery/v/CredUICredential.svg)](https://www.powershellgallery.com/packages/CredUICredential)
 [![PowerShell Gallery Downloads](https://img.shields.io/powershellgallery/dt/CredUICredential.svg)](https://www.powershellgallery.com/packages/CredUICredential)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 
-## Why do I need CredUICredential?
+`Get-Credential` on PowerShell 7 prompts in the terminal, where the password is a row of asterisks
+nobody can check. `Get-CredUICredential` raises the real Windows credential dialog instead — the one
+Windows itself uses for RDP logins — and hands back the same `PSCredential`.
 
-Although, Powershell has built-in support for getting user credentials, it leaves much to be desired.
+**Requires Windows, and PowerShell 7.6 or later** (x64 or x86). It is a binary module built for
+.NET 10, so it needs a host running on .NET 10.
 
-In Powershell 7, the built-in cmdlet `Get-Credential` prompts for credentials in a terminal. It looks like this:
+## Install
+
+```powershell
+Install-PSResource CredUICredential
+```
+
+## Quick start
+
+```powershell
+$creds = Get-CredUICredential -Title 'Admin credentials needed' -Message 'Enter your admin credentials to continue'
+```
+
+<img src="assets/dialog.png" alt="The Windows credential dialog raised by Get-CredUICredential" width="420">
+
+In an existing script, change the cmdlet name and nothing else:
+
+```diff
+- $creds = Get-Credential
++ $creds = Get-CredUICredential
+```
+
+## Why not `Get-Credential`?
+
+In PowerShell 7 the built-in cmdlet prompts in the terminal:
 
 ```
-$x = Get-Credential
-
 PowerShell credential request
 Enter your credentials.
 User: firstname-lastname
 Password for user firstname-lastname: **********
 ```
 
-There are several user experience problems with this:
+It gets the job done, but the user cannot check what they typed, has to be watching the terminal to
+notice the prompt at all, and gets no visual signal that it is Windows asking for a password rather
+than a script asking for any old string.
 
-- The user cannot peek their password to confirm it's correct. Powershell obscures it with asteriks.
-- The user has to interact with the terminal.
-- It just doesn't look good.
+`Get-CredUICredential` calls `CredUIPromptForWindowsCredentials` in **credui.dll**, so the prompt is
+drawn by Windows. That buys the platform's behaviour rather than reimplementing it:
 
-Overall, `Get-Credential` gets the job done, but it isn't the _best_ experience you could give your users.
+|  | `Get-Credential` | `Get-CredUICredential` |
+| --- | --- | --- |
+| Prompt | Terminal text | Native Windows dialog |
+| Reveal what was typed | No, asterisks only | Yes — the password box's peek glyph |
+| Script running in the background | Prompt waits unseen in the terminal | A real window, which comes to the front |
+| Theme | Whatever the terminal is | Follows Windows: light, dark, high contrast |
+| Window title | n/a | `-Title`, which password managers can match on |
+| Save check box | No | `-ShowSaveCheckbox` |
+| Check the password before returning | No | `-RetryNormalUser` / `-RetryAdminUser` |
+| Returns | `PSCredential` | `PSCredential` |
+| Runs on | Windows, macOS, Linux | Windows only |
 
-## How does CredUICredential address these problems?
+The peek glyph is the one users notice. It is hold-to-show, and it is most of the argument for the
+P/Invoke:
 
-CredUICredential is a PowerShell module written in C# atop .NET 10. It uses P/Invoke to wrap **credui.dll**.
+<img src="assets/peek.png" alt="The password box with its reveal glyph held down, showing the typed password" width="420">
 
-Because it is a binary module built for .NET 10, it needs a PowerShell host running on .NET 10: **PowerShell 7.6
-or later**, on Windows.
+## What it adds
 
-Specifically, it calls `CredUIPromptForWindowsCredentials`, the same native API behind the modern (Vista+) Windows
-credential dialog you already see for things like UAC elevation and RDP logins. Because it's a real Windows dialog
-instead of a terminal prompt, you get the platform's UX for free:
+Everything `Get-Credential` takes, `Get-CredUICredential` takes too, under the same names and the
+same parameter sets. On top of that:
 
-- The password field has a built-in "peek" icon so the user can reveal what they typed before submitting.
-  The dialog is seeded with the Kerberos authentication package, so the **More choices** tiles for
-  PIN and smart card are not offered - those are not reusable passwords. As a backstop, anything
-  that comes back tagged as something other than a username-and-password logon is rejected rather
-  than returned as a `PSCredential`; with `-RetryNormalUser` / `-RetryAdminUser` that rejection
-  consumes an attempt and shows the dialog again.
-- It's a native window, so it pops to the front whether the calling script is running interactively or in the background.
-- It automatically matches the user's OS theme (light, dark, high contrast), because it's rendered by Windows itself.
+| Parameter | What it does |
+| --- | --- |
+| `-Message` | The text in the body of the dialog. Same as `Get-Credential`. |
+| `-Title` | The dialog's heading. Useful with password managers such as KeePass, which match a window's title to decide what to auto-type. |
+| `-UserName` | Pre-fills the user name. The user can still replace it, via **More choices → Use a different account**. |
+| `-ShowSaveCheckbox` | Adds Windows' save check box. Changes the return type — see below. |
+| `-RetryNormalUser` | Keeps prompting until the password actually logs on. |
+| `-RetryAdminUser` | The same, but the account must also be a local administrator. |
+| `-MaxAttempts` | How many attempts the retry switches get. Default 3, range 1–10. |
 
-CredUICredential exports the cmdlet `Get-CredUICredential`, a **drop-in replacement** for
-`Get-Credential`: it accepts a `Credential` parameter and returns a `PSCredential`, just like the built-in cmdlet,
-so in most scripts you can swap the cmdlet name and change nothing else.
-On top of that baseline, it adds a couple of small conveniences:
+Two of those need more than a table row.
 
-- `-Message` lets you customize the text shown in the dialog, same as `Get-Credential`.
-- `-Title` lets you customize the dialog's window caption. This is particularly useful with password managers
-  like KeePass that match a window's title to decide which stored credentials to auto-type into it.
-- `-ShowSaveCheckbox` adds the native "Save" check box to the dialog. When you use this switch,
-  `Get-CredUICredential` returns an object with `Credential` and `Checkbox` properties instead of a bare
-  `PSCredential`, since there are now two things to report back:
+### `-ShowSaveCheckbox` changes the return type
 
-  ```powershell
-      $result = Get-CredUICredential -ShowSaveCheckbox
-      $result.Credential # a PSCredential, same as always
-      $result.Checkbox   # $true or $false, depending on whether the box was checked
-  ```
-
-  Note that Windows does not let this checkbox's label be customized, and checking it doesn't save
-  anything on its own — actually persisting the credential (or not) based on `$result.Checkbox` is up to
-  your script.
-- `-RetryNormalUser` keeps the dialog up until the password logs on against this computer (or its domain),
-  the user cancels, or `-MaxAttempts` is used up (default 3, range 1–10). A wrong password restyles the
-  dialog with Windows' native error banner. Cancel writes nothing; using up the attempts writes an error.
-- `-RetryAdminUser` does the same, but the account must also be a member of the local Administrators group.
-  The two retry switches cannot be combined.
-
-## Usage
+There are now two things to report back, so the cmdlet returns an object with `Credential` and
+`Checkbox` properties instead of a bare `PSCredential`. This is the one place the drop-in claim does
+not hold.
 
 ```powershell
-    # Install module from PowerShell Gallery
-    # Package URL: https://www.powershellgallery.com/packages/CredUICredential
-    Install-PSResource CredUICredential
+$result = Get-CredUICredential -ShowSaveCheckbox
+$result.Credential   # a PSCredential, same as always
+$result.Checkbox     # $true or $false
 ```
+
+<img src="assets/save-checkbox.png" alt="The dialog with Windows' save check box, labelled Remember me" width="420">
+
+Windows does not allow that label to be changed — it says "Remember me" — and ticking it saves
+nothing by itself. Acting on `$result.Checkbox` is your script's job.
+
+### The retry switches check the password
+
+`-RetryNormalUser` calls `LogonUser` against this computer and re-prompts until the credential works,
+the user cancels, or `-MaxAttempts` runs out. A wrong password comes back as Windows' own error
+banner rather than as a PowerShell error:
+
+<img src="assets/retry-error.png" alt="The dialog re-raised with the native error banner reading The username or password is incorrect" width="420">
+
+Cancelling writes nothing to the pipeline; running out of attempts writes an error. Only a genuine
+logon failure is retried — a locked out, disabled or expired account stops immediately, rather than
+burning the account further.
+
+`-RetryAdminUser` also requires the local Administrators SID in the token, which is how it sees
+through the filtered token UAC hands out. The two switches cannot be combined.
+
+## Security notes
+
+The dialog is seeded with the Kerberos authentication package, which keeps PIN and smart card off
+**More choices**. Neither is a reusable password, and a script asking for a `PSCredential` has
+nothing it can do with one:
+
+<img src="assets/more-choices.png" alt="More choices expanded, showing only the password account and Use a different account" width="420">
+
+As a backstop, anything that comes back tagged as something other than a user-name-and-password
+logon is rejected rather than returned. Under the retry switches that rejection costs an attempt and
+raises the dialog again.
+
+The authentication buffer Windows hands back holds the password in the clear. It is zeroed and
+released on every path out, the failures included.
+
+## Documentation
+
+`Get-Help Get-CredUICredential -Full` works once the module is installed. The same content lives in
+[CredUICredential.md](CredUICredential.md), which is what that help is generated from. For anything
+the two cmdlets share, `Get-Credential`'s documentation applies.
+
+## Building from source
 
 ```powershell
-    # Use the modern credential dialog
-    $creds = Get-CredUICredential -Title 'Admin credentials needed' -Message 'Enter your admin credentials to continue'
+dotnet build
+dotnet test tests/CredUICredential.Tests/CredUICredential.Tests.csproj -c Release
 ```
 
-![Modern dialog](/assets/modern.png)
+The tests run against the Release build and need the generated help file, so on a clean tree run
+`pwsh ./Update-Help.ps1` first. Note that a PowerShell session with the module imported holds a lock
+on the Release DLL, and a build will fail to overwrite it until that session exits.
 
-The help documentation is in the `CredUICredential.md` file. Refer to the `Get-Credential` documentation for
-advanced usages.
+`tools/CredUiSmoke/` drives the real dialog through UI Automation with nobody at the keyboard. It is
+how the screenshots above were taken, and how claims about the credential provider UI get checked:
+the xunit suite replaces the native prompt, so nothing in it ever sees that surface. It sits outside
+the solution on purpose, so neither `dotnet build` nor CI builds it.
 
 ## Acknowledgement
 
@@ -102,3 +165,7 @@ implementation goes to them; this fork exists to keep the module published and m
 The idea of the original POC stemmed from [a StackOverflow question](https://stackoverflow.com/q/70570097/5910839) by [BubblesTheTurtle](https://stackoverflow.com/users/6211486/bubblestheturtle).
 
 The code is based on the [Credential Management API examples by Alan Dean](https://www.developerfusion.com/code/4693/using-the-credential-management-api/).
+
+## License
+
+[MIT](LICENSE.txt).
